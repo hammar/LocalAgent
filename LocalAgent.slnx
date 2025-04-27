@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="LocalAgent.ApiService/LocalAgent.ApiService.csproj" />
+  <Project Path="LocalAgent.AppHost/LocalAgent.AppHost.csproj" />
+  <Project Path="LocalAgent.ServiceDefaults/LocalAgent.ServiceDefaults.csproj" />
+  <Project Path="LocalAgent.Tests/LocalAgent.Tests.csproj" />
+  <Project Path="LocalAgent.Web/LocalAgent.Web.csproj" />
+</Solution>
