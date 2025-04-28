@@ -1,0 +1,104 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components.Web
+@inject IConfiguration Configuration
+
+<h3>Chat Bot</h3>
+
+<div class="chat-container" style="max-width:600px;margin:auto;">
+    <div class="messages" style="border:1px solid #ccc;padding:10px;height:300px;overflow-y:auto;">
+        @if (Messages.Count == 0)
+        {
+            <p><em>No messages yet.</em></p>
+        }
+        else
+        {
+            @foreach (var message in Messages)
+            {
+                <div class="message" style="margin-bottom:8px;">@message</div>
+            }
+        }
+    </div>
+    <div class="input-group" style="margin-top:10px;display:flex;">
+        <input type="text" placeholder="Enter your message..."
+               @bind="UserMessage"
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown"
+               class="chat-input"
+               style="flex:1;padding:8px;border:1px solid #ccc;"/>
+        <button @onclick="SendMessage"
+                class="send-button"
+                style="padding:8px 16px;margin-left:5px;">Send</button>
+    </div>
+</div>
+
+@code {
+    private HubConnection _hubConnection = default!;
+    private List<string> Messages = new List<string>();
+    private string UserMessage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Initialize the SignalR connection when the component is loaded.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var backendUrl = Configuration["services:apiservice:http:0"];
+        if (string.IsNullOrWhiteSpace(backendUrl))
+        {
+            throw new InvalidOperationException("Backend URL is not configured.");
+        }
+
+        // Build the hub connection using the absolute URL.
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{backendUrl}/chathub")
+            .Build();
+
+        // Subscribe to the "ReceiveMessage" event from the hub.
+        _hubConnection.On<string>("ReceiveMessage", (message) =>
+        {
+            Messages.Add(message);
+            // Ensure UI updates happen on the UI thread.
+            InvokeAsync(StateHasChanged);
+        });
+
+        // Start the SignalR connection.
+        await _hubConnection.StartAsync();
+    }
+
+    /// <summary>
+    /// Sends the user message to the SignalR hub.
+    /// </summary>
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(UserMessage))
+        {
+            Messages.Add(UserMessage);
+            await _hubConnection.SendAsync("SendMessage", UserMessage);
+            UserMessage = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Listens for the Enter key in the input field to send a message.
+    /// </summary>
+    /// <param name="e">Keyboard event arguments</param>
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+
+    /// <summary>
+    /// Dispose the SignalR connection when the component is disposed.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
