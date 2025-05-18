@@ -1,4 +1,5 @@
 using LocalAgent.ApiService;
+using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,12 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddSignalR();
+
+builder.AddKeyedOllamaSharpChatClient("llama32");
+builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("llama32"))
+                .UseFunctionInvocation()
+                .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
+                .UseLogging();
 
 var app = builder.Build();
 
