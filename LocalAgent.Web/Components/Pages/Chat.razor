@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.AI
 @inject IConfiguration Configuration
 
 <h3>Chat Bot</h3>
@@ -22,7 +23,7 @@
     </div>
     <div class="input-group" style="margin-top:10px;display:flex;">
         <input type="text" placeholder="Enter your message..."
-               @bind="UserMessage"
+               @bind="UserPrompt"
                @bind:event="oninput"
                @onkeydown="HandleKeyDown"
                class="chat-input"
@@ -36,7 +37,7 @@
 @code {
     private HubConnection _hubConnection = default!;
     private List<string> Messages = new List<string>();
-    private string UserMessage { get; set; } = string.Empty;
+    private string UserPrompt { get; set; } = string.Empty;
 
     /// <summary>
     /// Initialize the SignalR connection when the component is loaded.
@@ -55,10 +56,29 @@
             .Build();
 
         // Subscribe to the "ReceiveMessage" event from the hub.
-        _hubConnection.On<string>("ReceiveMessage", (message) =>
+        _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", (message) =>
         {
-            Messages.Add(message);
-            // Ensure UI updates happen on the UI thread.
+            foreach (var content in message.Contents) {
+                if (content is TextContent textContent)
+                {
+                    Messages.Add(textContent.Text);
+                }
+                else if (content is FunctionCallContent functionCallContent)
+                {
+                    Messages.Add($"Function Call: {functionCallContent.Name}");
+                    foreach (var arg in functionCallContent.Arguments ?? new Dictionary<string,object?>())
+                    {
+                        Messages.Add($"Argument: {arg.Key} = {arg.Value ?? string.Empty}");
+                    }
+                }
+                else if (content is FunctionResultContent functionResultContent)
+                {
+                    Messages.Add($"Function Result: {functionResultContent.Result}");
+                }
+                else {
+                    Console.WriteLine($"Unknown content type received: {content.GetType()}");
+                }
+            }
             InvokeAsync(StateHasChanged);
         });
 
@@ -71,11 +91,11 @@
     /// </summary>
     private async Task SendMessage()
     {
-        if (!string.IsNullOrWhiteSpace(UserMessage))
+        if (!string.IsNullOrWhiteSpace(UserPrompt))
         {
-            Messages.Add(UserMessage);
-            await _hubConnection.SendAsync("SendMessage", UserMessage);
-            UserMessage = string.Empty;
+            Messages.Add(UserPrompt);
+            await _hubConnection.SendAsync("ProcessUserPrompt", UserPrompt);
+            UserPrompt = string.Empty;
         }
     }
 

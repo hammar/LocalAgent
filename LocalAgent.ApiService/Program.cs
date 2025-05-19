@@ -17,6 +17,8 @@ builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("ll
                 .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
                 .UseLogging();
 
+builder.Services.AddSingleton<IToolProvider, DefaultToolProvider>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

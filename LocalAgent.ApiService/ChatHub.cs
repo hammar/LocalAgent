@@ -7,28 +7,26 @@ public class ChatHub : Hub
 {
     private ILogger<ChatHub> _logger;
     private readonly IChatClient _chatClient;
-    private readonly ChatOptions _chatOptions;
+    private readonly IToolProvider _toolProvider;
 
-    public ChatHub(ILogger<ChatHub> logger, IChatClient chatClient)
+    public ChatHub(ILogger<ChatHub> logger, IChatClient chatClient, IToolProvider toolProvider)
     {
         _logger = logger;
         _chatClient = chatClient;
+        _toolProvider = toolProvider;
+    }
 
-        _chatOptions = new()
+    public async Task ProcessUserPrompt(string prompt)
+    {
+        var chatOptions = new ChatOptions
         {
-            ToolMode = ChatToolMode.RequireSpecific("LogIWasRun"),
-            Tools = [AIFunctionFactory.Create(LogIWasRun, "LogIWasRun", "Logs that I was run")]
+            ToolMode = ChatToolMode.Auto,
+            Tools = _toolProvider.GetTools().ToList(),
         };
-    }
-
-    public async Task SendMessage(string message)
-    {
-        var response = await _chatClient.GetResponseAsync(message, _chatOptions);
-        await Clients.All.SendAsync("ReceiveMessage", response.Text);
-    }
-
-    private void LogIWasRun() 
-    {
-        _logger.LogInformation("I was run");
+        var responses = _chatClient.GetStreamingResponseAsync(prompt, chatOptions);
+        await foreach (ChatResponseUpdate response in responses)
+        {
+            await Clients.All.SendAsync("ProcessAgentResponse", response);
+        }
     }
 }
