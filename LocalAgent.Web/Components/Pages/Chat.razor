@@ -7,37 +7,88 @@
 
 <h3>Chat Bot</h3>
 
-<div class="chat-container" style="max-width:600px;margin:auto;">
-    <div class="messages" style="border:1px solid #ccc;padding:10px;height:300px;overflow-y:auto;">
-        @if (Messages.Count == 0)
+<div class="chat-main-container" style="display:flex;gap:24px;max-width:1200px;margin:auto;">
+    <!-- Chat Window (Left) -->
+    <div class="chat-container" style="flex:1;min-width:0;">
+        <div class="messages" style="border:1px solid #ccc;padding:10px;height:300px;overflow-y:auto;">
+            @if (Messages.Count == 0)
+            {
+                <p><em>No messages yet.</em></p>
+            }
+            else
+            {
+                for (int i = 0; i < Messages.Count; i++)
+                {
+                    var message = Messages[i];
+                    <div class="message" style="margin-bottom:8px;">
+                        @if (message.IsUser)
+                        {
+                            <strong style="color:#1976d2;">User:</strong> @message.Text
+                        }
+                        else
+                        {
+                            <strong>Agent:</strong> @message.Text
+                        }
+                    </div>
+                    // Render separator after user message or end-of-turn bot message, except after the last message
+                    if ((message.IsUser || message.IsEndOfTurn) && i < Messages.Count - 1)
+                    {
+                        <hr style="border:0;border-top:1px dashed #bbb;margin:12px 0;" />
+                    }
+                }
+            }
+        </div>
+        <div class="input-group" style="margin-top:10px;display:flex;">
+            <input type="text" placeholder="Enter your message..."
+                   @bind="UserPrompt"
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyDown"
+                   class="chat-input"
+                   style="flex:1;padding:8px;border:1px solid #ccc;"/>
+            <button @onclick="SendMessage"
+                    class="send-button"
+                    style="padding:8px 16px;margin-left:5px;">Send</button>
+        </div>
+    </div>
+    <!-- Actions Window (Right) -->
+    <div class="actions-container" style="flex:1;min-width:0;border:1px solid #ccc;padding:10px;height:370px;overflow-y:auto;background:#fafbfc;">
+        <h4>Actions Taken by the Chatbot</h4>
+        @if (Actions.Count == 0)
         {
-            <p><em>No messages yet.</em></p>
+            <p><em>No actions yet.</em></p>
         }
         else
         {
-            @foreach (var message in Messages)
-            {
-                <div class="message" style="margin-bottom:8px;">@message</div>
-            }
+            <ul style="padding-left:18px;">
+                @foreach (var action in Actions)
+                {
+                    <li style="margin-bottom:8px;">@action.Description</li>
+                }
+            </ul>
         }
-    </div>
-    <div class="input-group" style="margin-top:10px;display:flex;">
-        <input type="text" placeholder="Enter your message..."
-               @bind="UserPrompt"
-               @bind:event="oninput"
-               @onkeydown="HandleKeyDown"
-               class="chat-input"
-               style="flex:1;padding:8px;border:1px solid #ccc;"/>
-        <button @onclick="SendMessage"
-                class="send-button"
-                style="padding:8px 16px;margin-left:5px;">Send</button>
+        <!-- Later, populate this with actual actions from the chatbot -->
     </div>
 </div>
 
 @code {
     private HubConnection _hubConnection = default!;
-    private List<string> Messages = new List<string>();
+    // Message model to track sender and end-of-turn
+    private class ChatMessage
+    {
+        public string Text { get; set; } = string.Empty;
+        public bool IsUser { get; set; }
+        public bool IsEndOfTurn { get; set; }
+    }
+    // Action model for the actions pane
+    private class ChatAction
+    {
+        public string Description { get; set; } = string.Empty;
+    }
+    private List<ChatMessage> Messages = new List<ChatMessage>();
+    private List<ChatAction> Actions = new List<ChatAction>();
     private string UserPrompt { get; set; } = string.Empty;
+    private string _agentBuffer = string.Empty;
+    private ChatMessage? _currentAgentMessage = null;
 
     /// <summary>
     /// Initialize the SignalR connection when the component is loaded.
@@ -56,30 +107,70 @@
             .Build();
 
         // Subscribe to the "ReceiveMessage" event from the hub.
-        _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", (message) =>
+        _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", async (message) =>
         {
-            foreach (var content in message.Contents) {
+            int contentCount = message.Contents.Count;
+            for (int idx = 0; idx < contentCount; idx++)
+            {
+                var content = message.Contents[idx];
+                bool isLastContent = (idx == contentCount - 1);
+                bool isEndOfTurn = isLastContent && message.FinishReason != null;
                 if (content is TextContent textContent)
                 {
-                    Messages.Add(textContent.Text);
+                    // Streaming agent words: append to current agent message or create new
+                    if (_currentAgentMessage == null || _currentAgentMessage.IsEndOfTurn)
+                    {
+                        _currentAgentMessage = new ChatMessage {
+                            Text = string.Empty,
+                            IsUser = false,
+                            IsEndOfTurn = false
+                        };
+                        Messages.Add(_currentAgentMessage);
+                    }
+                    // Add a space if needed between words
+                    if (!string.IsNullOrEmpty(_currentAgentMessage.Text))
+                    {
+                        _currentAgentMessage.Text += " ";
+                    }
+                    _currentAgentMessage.Text += textContent.Text;
+                    if (isEndOfTurn && _currentAgentMessage != null)
+                    {
+                        _currentAgentMessage.IsEndOfTurn = true;
+                        _currentAgentMessage = null;
+                    }
+                    await InvokeAsync(StateHasChanged); // Await for true streaming
+                    await Task.Yield();
                 }
                 else if (content is FunctionCallContent functionCallContent)
                 {
-                    Messages.Add($"Function Call: {functionCallContent.Name}");
+                    Actions.Add(new ChatAction {
+                        Description = $"Function Call: {functionCallContent.Name}"
+                    });
                     foreach (var arg in functionCallContent.Arguments ?? new Dictionary<string,object?>())
                     {
-                        Messages.Add($"Argument: {arg.Key} = {arg.Value ?? string.Empty}");
+                        Actions.Add(new ChatAction {
+                            Description = $"Argument: {arg.Key} = {arg.Value ?? string.Empty}"
+                        });
                     }
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Yield();
                 }
                 else if (content is FunctionResultContent functionResultContent)
                 {
-                    Messages.Add($"Function Result: {functionResultContent.Result}");
+                    Actions.Add(new ChatAction {
+                        Description = $"Function Result: {functionResultContent.Result}"
+                    });
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Yield();
                 }
                 else {
-                    Console.WriteLine($"Unknown content type received: {content.GetType()}");
+                    Actions.Add(new ChatAction {
+                        Description = $"Unknown content type received: {content.GetType()}"
+                    });
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Yield();
                 }
             }
-            InvokeAsync(StateHasChanged);
         });
 
         // Start the SignalR connection.
@@ -93,7 +184,11 @@
     {
         if (!string.IsNullOrWhiteSpace(UserPrompt))
         {
-            Messages.Add(UserPrompt);
+            Messages.Add(new ChatMessage {
+                Text = UserPrompt,
+                IsUser = true,
+                IsEndOfTurn = true
+            });
             await _hubConnection.SendAsync("ProcessUserPrompt", UserPrompt);
             UserPrompt = string.Empty;
         }
