@@ -11,31 +11,23 @@
     <!-- Chat Window (Left) -->
     <div class="chat-container" style="flex:1;min-width:0;">
         <div class="messages" style="border:1px solid #ccc;padding:10px;height:300px;overflow-y:auto;">
-            @if (Messages.Count == 0)
+            @if (_chatHistory.Count == 0)
             {
                 <p><em>No messages yet.</em></p>
             }
             else
             {
-                for (int i = 0; i < Messages.Count; i++)
+                foreach (var chatMessage in _chatHistory.Where(msg => !string.IsNullOrEmpty(msg.Text)))
                 {
-                    var message = Messages[i];
                     <div class="message" style="margin-bottom:8px;">
-                        @if (message.IsUser)
-                        {
-                            <strong style="color:#1976d2;">User:</strong> @message.Text
-                        }
-                        else
-                        {
-                            <strong>Agent:</strong> @message.Text
-                        }
+                        <strong style="text-transform: capitalize;">@chatMessage.Role:</strong> @chatMessage.Text
                     </div>
-                    // Render separator after user message or end-of-turn bot message, except after the last message
-                    if ((message.IsUser || message.IsEndOfTurn) && i < Messages.Count - 1)
-                    {
-                        <hr style="border:0;border-top:1px dashed #bbb;margin:12px 0;" />
-                    }
                 }
+            }
+            @if (!string.IsNullOrEmpty(_streamingResponse)) {
+                <div class="message">
+                    <strong>Assistant:</strong> @_streamingResponse
+                </div>
             }
         </div>
         <div class="input-group" style="margin-top:10px;display:flex;">
@@ -43,9 +35,11 @@
                    @bind="UserPrompt"
                    @bind:event="oninput"
                    @onkeydown="HandleKeyDown"
+                   disabled="@SendDisabled"
                    class="chat-input"
                    style="flex:1;padding:8px;border:1px solid #ccc;"/>
             <button @onclick="SendMessage"
+                    disabled="@SendDisabled"
                     class="send-button"
                     style="padding:8px 16px;margin-left:5px;">Send</button>
         </div>
@@ -62,7 +56,7 @@
             <ul style="padding-left:18px;">
                 @foreach (var action in Actions)
                 {
-                    <li style="margin-bottom:8px;">@action.Description</li>
+                    <li style="margin-bottom:8px;">@action</li>
                 }
             </ul>
         }
@@ -72,23 +66,17 @@
 
 @code {
     private HubConnection _hubConnection = default!;
-    // Message model to track sender and end-of-turn
-    private class ChatMessage
-    {
-        public string Text { get; set; } = string.Empty;
-        public bool IsUser { get; set; }
-        public bool IsEndOfTurn { get; set; }
-    }
-    // Action model for the actions pane
-    private class ChatAction
-    {
-        public string Description { get; set; } = string.Empty;
-    }
-    private List<ChatMessage> Messages = new List<ChatMessage>();
-    private List<ChatAction> Actions = new List<ChatAction>();
+
+    private bool SendDisabled = false;
+    private List<ChatMessage> _chatHistory = [];
+    
+    private Dictionary<string,List<ChatResponseUpdate>> _responseUpdatesBuffer = new ();
+
+    private string _streamingResponse = string.Empty;
+
+    private List<string> Actions = new();
+
     private string UserPrompt { get; set; } = string.Empty;
-    private string _agentBuffer = string.Empty;
-    private ChatMessage? _currentAgentMessage = null;
 
     /// <summary>
     /// Initialize the SignalR connection when the component is loaded.
@@ -107,74 +95,67 @@
             .Build();
 
         // Subscribe to the "ReceiveMessage" event from the hub.
-        _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", async (message) =>
+        _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", async (responseUpdate) =>
         {
-            int contentCount = message.Contents.Count;
-            for (int idx = 0; idx < contentCount; idx++)
-            {
-                var content = message.Contents[idx];
-                bool isLastContent = (idx == contentCount - 1);
-                bool isEndOfTurn = isLastContent && message.FinishReason != null;
-                if (content is TextContent textContent)
-                {
-                    // Streaming agent words: append to current agent message or create new
-                    if (_currentAgentMessage == null || _currentAgentMessage.IsEndOfTurn)
-                    {
-                        _currentAgentMessage = new ChatMessage {
-                            Text = string.Empty,
-                            IsUser = false,
-                            IsEndOfTurn = false
-                        };
-                        Messages.Add(_currentAgentMessage);
-                    }
-                    // Add a space if needed between words
-                    if (!string.IsNullOrEmpty(_currentAgentMessage.Text))
-                    {
-                        _currentAgentMessage.Text += " ";
-                    }
-                    _currentAgentMessage.Text += textContent.Text;
-                    if (isEndOfTurn && _currentAgentMessage != null)
-                    {
-                        _currentAgentMessage.IsEndOfTurn = true;
-                        _currentAgentMessage = null;
-                    }
-                    await InvokeAsync(StateHasChanged); // Await for true streaming
-                    await Task.Yield();
-                }
-                else if (content is FunctionCallContent functionCallContent)
-                {
-                    Actions.Add(new ChatAction {
-                        Description = $"Function Call: {functionCallContent.Name}"
-                    });
-                    foreach (var arg in functionCallContent.Arguments ?? new Dictionary<string,object?>())
-                    {
-                        Actions.Add(new ChatAction {
-                            Description = $"Argument: {arg.Key} = {arg.Value ?? string.Empty}"
-                        });
-                    }
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Yield();
-                }
-                else if (content is FunctionResultContent functionResultContent)
-                {
-                    Actions.Add(new ChatAction {
-                        Description = $"Function Result: {functionResultContent.Result}"
-                    });
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Yield();
+            // A response ID is required in order to reconstruct responses from partial updates.
+            ArgumentException.ThrowIfNullOrEmpty(responseUpdate.ResponseId, nameof(responseUpdate.ResponseId));
+
+            // Add the response update to the buffer (creating a new list if this is the first update for a given response).
+            // This buffer holds all the updates for a given response until the response is completely retrieved.
+            if (_responseUpdatesBuffer.TryGetValue(responseUpdate.ResponseId, out var responseUpdates) && responseUpdates != null) {
+                responseUpdates.Add(responseUpdate);
+            }
+            else {
+                responseUpdates = new List<ChatResponseUpdate> { responseUpdate };
+                _responseUpdatesBuffer[responseUpdate.ResponseId] = responseUpdates;
+            }
+
+            // If this is the last update to the response then we can now create a message from the buffer
+            // and add it to the chat or action history, and the GUI will include it on next re-render.
+            if (responseUpdate.FinishReason.HasValue) {
+                // TODO: figure out what happens with error responses and other non-text but non-action responses.
+                var completeResponse = responseUpdates.ToChatResponse();
+                if (!string.IsNullOrEmpty(completeResponse.Text)) {
+                    // This is a text response from the agent, so we add it to the chat history.
+                    _chatHistory.AddMessages(responseUpdates);
+                    _streamingResponse = string.Empty; // Clear the streaming GUI after message completion to avoid duplicate text.
+                    SendDisabled = false; // Re-enable the input field.
                 }
                 else {
-                    Actions.Add(new ChatAction {
-                        Description = $"Unknown content type received: {content.GetType()}"
-                    });
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Yield();
+                    // This response is an action taken by the agent, so we add any steps from it to the actions list.
+                    Actions.AddRange(GetActionDescriptions(completeResponse));
                 }
+                
+                _responseUpdatesBuffer.Remove(responseUpdate.ResponseId); // Since the response is complete, we can remove it from the buffer.
+                
             }
+            else if (!string.IsNullOrEmpty(responseUpdate.Text)) {
+                // Otherwise, if the response is not yet completely received, then we we stream the
+                // partial response to the UI directly for a nice UX -- but only for text content!
+                _streamingResponse += responseUpdate.Text;
+            }
+
+            await InvokeAsync(StateHasChanged);
         });
 
         // Start the SignalR connection.
         await _hubConnection.StartAsync();
+    }
+
+    private static IEnumerable<string> GetActionDescriptions(ChatResponse response) 
+    {
+        foreach (var content in response.Messages.SelectMany(msg => msg.Contents))
+        {
+            // TODO: Add more content types here as needed.
+            if (content is FunctionCallContent functionCall)
+            {
+                yield return $"Function Call: {functionCall.Name}({string.Join(", ", functionCall.Arguments?.Select(arg => $"{arg.Key}: {arg.Value}") ?? [])})";
+            }
+            else if (content is FunctionResultContent functionResult)
+            {
+                yield return $"Function Result: {functionResult.Result}";
+            }
+        }
     }
 
     /// <summary>
@@ -182,15 +163,12 @@
     /// </summary>
     private async Task SendMessage()
     {
-        if (!string.IsNullOrWhiteSpace(UserPrompt))
+        if (!SendDisabled && !string.IsNullOrWhiteSpace(UserPrompt))
         {
-            Messages.Add(new ChatMessage {
-                Text = UserPrompt,
-                IsUser = true,
-                IsEndOfTurn = true
-            });
-            await _hubConnection.SendAsync("ProcessUserPrompt", UserPrompt);
+            _chatHistory.Add(new(ChatRole.User, UserPrompt));
+            await _hubConnection.SendAsync("ProcessUserPrompt", _chatHistory);
             UserPrompt = string.Empty;
+            SendDisabled = true; // Disable the input field while waiting for a response.
         }
     }
 

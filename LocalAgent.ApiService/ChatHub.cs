@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 
@@ -16,14 +17,14 @@ public class ChatHub : Hub
         _toolProvider = toolProvider;
     }
 
-    public async Task ProcessUserPrompt(string prompt)
+    public async Task ProcessUserPrompt(List<ChatMessage> chatHistory)
     {
         var chatOptions = new ChatOptions
         {
             ToolMode = ChatToolMode.Auto,
             Tools = _toolProvider.GetTools().ToList(),
         };
-        var responses = _chatClient.GetStreamingResponseAsync(prompt, chatOptions);
+        var responses = _chatClient.GetStreamingResponseAsync(chatHistory, chatOptions);
         await foreach (ChatResponseUpdate response in responses)
         {
             await Clients.All.SendAsync("ProcessAgentResponse", response);
