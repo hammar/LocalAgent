@@ -1,5 +1,7 @@
 using LocalAgent.ApiService;
 using Microsoft.Extensions.AI;
+using LocalAgent.ApiService.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,11 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
+
+// Register AppDbContext with SQLite connection string from Aspire
+var sqliteConnectionString = builder.Configuration.GetConnectionString("sqlite") ?? "Data Source=../Data/dev.db";
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(sqliteConnectionString));
 
 builder.Services.AddSignalR();
 

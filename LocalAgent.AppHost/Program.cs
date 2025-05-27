@@ -1,4 +1,8 @@
+using CommunityToolkit.Aspire.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlite = builder.AddSqlite("sqlite", "../Data/", "dev.db").WithSqliteWeb();
 
 var llama32 = builder.AddOllama("ollama")
     .WithDataVolume()
@@ -7,7 +11,8 @@ var llama32 = builder.AddOllama("ollama")
 
 var apiService = builder.AddProject<Projects.LocalAgent_ApiService>("apiservice")
     .WithHttpsHealthCheck("/health")
-    .WithReference(llama32);
+    .WithReference(llama32)
+    .WithReference(sqlite);
 
 builder.AddProject<Projects.LocalAgent_Web>("webfrontend")
     .WithExternalHttpEndpoints()

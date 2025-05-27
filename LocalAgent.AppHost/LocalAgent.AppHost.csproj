@@ -18,6 +18,7 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="9.4.0" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.SQLite" Version="9.4.0" />
   </ItemGroup>
 
 </Project>
