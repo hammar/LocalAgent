@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using LocalAgent.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
 using LocalAgent.ApiService.Models;
+using Swashbuckle.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,8 @@ builder.Services.AddSingleton<IToolProvider, DefaultToolProvider>();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -34,7 +37,8 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.MapControllers();
