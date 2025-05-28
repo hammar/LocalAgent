@@ -2,6 +2,7 @@ using LocalAgent.ApiService;
 using Microsoft.Extensions.AI;
 using LocalAgent.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
+using LocalAgent.ApiService.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,9 +13,7 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 
 // Register AppDbContext with SQLite connection string from Aspire
-var sqliteConnectionString = builder.Configuration.GetConnectionString("sqlite") ?? "Data Source=../Data/dev.db";
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(sqliteConnectionString));
+builder.AddSqliteDbContext<AppDbContext>(name: "sqlite");
 
 builder.Services.AddSignalR();
 
@@ -25,6 +24,8 @@ builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("ll
                 .UseLogging();
 
 builder.Services.AddSingleton<IToolProvider, DefaultToolProvider>();
+builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -36,8 +37,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapHub<ChatHub>("/chathub");
+app.MapControllers();
+app.MapHealthChecks("/health");
 
-app.MapDefaultEndpoints();
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();

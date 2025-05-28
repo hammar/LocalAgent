@@ -1,0 +1,129 @@
+@page "/agents"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Agents</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">New Agent</button>
+</div>
+
+@if (IsLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>System Instructions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var agent in AllAgents)
+            {
+                <tr>
+                    <td>@agent.Id</td>
+                    <td>@agent.SystemInstructions</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary me-2" @onclick="() => EditAgent(agent)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteAgent(agent.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (ShowForm)
+{
+    <EditForm Model="EditModel" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">System Instructions</label>
+            <InputTextArea class="form-control" @bind-Value="EditModel.SystemInstructions" />
+        </div>
+        <button class="btn btn-success me-2" type="submit">Save</button>
+        <button class="btn btn-secondary" type="button" @onclick="HideForm">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private List<AgentDto> AllAgents = new();
+    private bool IsLoading = true;
+    private bool ShowForm = false;
+    private AgentDto EditModel = new();
+    private bool IsEdit = false;
+
+    private HttpClient Http => HttpClientFactory.CreateClient("DefaultClient");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAgents();
+    }
+
+    private async Task LoadAgents()
+    {
+        IsLoading = true;
+        AllAgents = await Http.GetFromJsonAsync<List<AgentDto>>("api/agents") ?? new();
+        IsLoading = false;
+    }
+
+    private void ShowCreateForm()
+    {
+        EditModel = new AgentDto();
+        IsEdit = false;
+        ShowForm = true;
+        StateHasChanged();
+    }
+
+    private void EditAgent(AgentDto agent)
+    {
+        EditModel = new AgentDto { Id = agent.Id, SystemInstructions = agent.SystemInstructions };
+        IsEdit = true;
+        ShowForm = true;
+        StateHasChanged();
+    }
+
+    private void HideForm()
+    {
+        ShowForm = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (IsEdit)
+        {
+            await Http.PutAsJsonAsync($"api/agents/{EditModel.Id}", EditModel);
+        }
+        else
+        {
+            var response = await Http.PostAsJsonAsync("api/agents", EditModel);
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<AgentDto>();
+                if (created != null)
+                    EditModel.Id = created.Id;
+            }
+        }
+        ShowForm = false;
+        await LoadAgents();
+    }
+
+    private async Task DeleteAgent(Guid id)
+    {
+        await Http.DeleteAsync($"api/agents/{id}");
+        await LoadAgents();
+    }
+
+    public class AgentDto
+    {
+        public Guid Id { get; set; }
+        public string SystemInstructions { get; set; } = string.Empty;
+    }
+}
