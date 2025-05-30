@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalAgent.ServiceDefaults\LocalAgent.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\LocalAgent.ApiService\LocalAgent.ApiService.csproj" />
   </ItemGroup>
 
   <ItemGroup>

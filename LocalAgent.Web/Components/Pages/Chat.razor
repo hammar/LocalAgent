@@ -1,11 +1,24 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@using LocalAgent.ApiService.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.Extensions.AI
 @inject IConfiguration Configuration
+@inject IHttpClientFactory HttpClientFactory
 
 <h3>Chat Bot</h3>
+
+<!-- Agent selection dropdown -->
+<div style="margin-bottom: 16px;">
+    <label for="agentSelect" style="margin-right: 8px;">Select Agent:</label>
+    <select id="agentSelect" value="@SelectedAgentId" @onchange="OnAgentChanged" style="padding: 4px 8px;">
+        @foreach (var agent in AllAgents)
+        {
+            <option value="@agent.Id">@agent.Id</option>
+        }
+    </select>
+</div>
 
 <div class="chat-main-container" style="display:flex;gap:24px;max-width:1200px;margin:auto;">
     <!-- Chat Window (Left) -->
@@ -77,12 +90,24 @@
     private List<string> Actions = new();
 
     private string UserPrompt { get; set; } = string.Empty;
+    private List<Agent> AllAgents = new();
+
+    private HttpClient Http => HttpClientFactory.CreateClient("DefaultClient");
+
+    private string? SelectedAgentId { get; set; }
 
     /// <summary>
     /// Initialize the SignalR connection when the component is loaded.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
+        SendDisabled = true;
+        AllAgents = await Http.GetFromJsonAsync<List<Agent>>("api/agents") ?? new();
+        if (AllAgents.Count > 0 && string.IsNullOrEmpty(SelectedAgentId))
+        {
+            SelectedAgentId = AllAgents[0].Id.ToString();
+        }
+
         var backendUrl = Configuration["services:apiservice:http:0"];
         if (string.IsNullOrWhiteSpace(backendUrl))
         {
@@ -140,6 +165,12 @@
 
         // Start the SignalR connection.
         await _hubConnection.StartAsync();
+
+        // Call StartAgent after SignalR connection is established and agent is selected
+        if (!string.IsNullOrEmpty(SelectedAgentId))
+        {
+            await StartAgent();
+        }
     }
 
     private static IEnumerable<string> GetActionDescriptions(ChatResponse response) 
@@ -166,7 +197,7 @@
         if (!SendDisabled && !string.IsNullOrWhiteSpace(UserPrompt))
         {
             _chatHistory.Add(new(ChatRole.User, UserPrompt));
-            await _hubConnection.SendAsync("ProcessUserPrompt", _chatHistory);
+            await _hubConnection.SendAsync("ProcessUserPrompt", SelectedAgentId, _chatHistory);
             UserPrompt = string.Empty;
             SendDisabled = true; // Disable the input field while waiting for a response.
         }
@@ -182,6 +213,19 @@
         {
             await SendMessage();
         }
+    }
+
+    private async Task OnAgentChanged(ChangeEventArgs e)
+    {
+        SelectedAgentId = e.Value?.ToString();
+        await StartAgent();
+    }
+
+    private async Task StartAgent()
+    {
+        _chatHistory.Clear();
+        SendDisabled = true;
+        await _hubConnection.SendAsync("StartAgent", SelectedAgentId);
     }
 
     /// <summary>
