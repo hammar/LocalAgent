@@ -19,6 +19,7 @@ public class ChatHub : Hub
 
     public async Task ProcessUserPrompt(List<ChatMessage> chatHistory)
     {
+        string originatingConnectionId = Context.ConnectionId;
         var chatOptions = new ChatOptions
         {
             ToolMode = ChatToolMode.Auto,
@@ -27,7 +28,7 @@ public class ChatHub : Hub
         var responses = _chatClient.GetStreamingResponseAsync(chatHistory, chatOptions);
         await foreach (ChatResponseUpdate response in responses)
         {
-            await Clients.All.SendAsync("ProcessAgentResponse", response);
+            await Clients.Client(originatingConnectionId).SendAsync("ProcessAgentResponse", response);
         }
     }
 }
