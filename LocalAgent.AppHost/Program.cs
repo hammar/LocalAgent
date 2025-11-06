@@ -2,7 +2,7 @@ using CommunityToolkit.Aspire.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("sqlite", "../Data/", "dev.db").WithSqliteWeb();
+var sqlite = builder.AddSqlite("sqlite").WithSqliteWeb();
 
 var llama32 = builder.AddOllama("ollama")
     .WithDataVolume()
