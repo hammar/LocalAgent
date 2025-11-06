@@ -94,7 +94,7 @@
 
     private HttpClient Http => HttpClientFactory.CreateClient("DefaultClient");
 
-    private string? SelectedAgentId { get; set; }
+    private Guid? SelectedAgentId { get; set; }
 
     /// <summary>
     /// Initialize the SignalR connection when the component is loaded.
@@ -103,9 +103,9 @@
     {
         SendDisabled = true;
         AllAgents = await Http.GetFromJsonAsync<List<Agent>>("api/agents") ?? new();
-        if (AllAgents.Count > 0 && string.IsNullOrEmpty(SelectedAgentId))
+        if (AllAgents.Count > 0 && SelectedAgentId == null)
         {
-            SelectedAgentId = AllAgents[0].Id.ToString();
+            SelectedAgentId = AllAgents[0].Id;
         }
 
         var backendUrl = Configuration["services:apiservice:http:0"];
@@ -167,7 +167,7 @@
         await _hubConnection.StartAsync();
 
         // Call StartAgent after SignalR connection is established and agent is selected
-        if (!string.IsNullOrEmpty(SelectedAgentId))
+        if (SelectedAgentId.HasValue)
         {
             await StartAgent();
         }
@@ -194,10 +194,10 @@
     /// </summary>
     private async Task SendMessage()
     {
-        if (!SendDisabled && !string.IsNullOrWhiteSpace(UserPrompt))
+        if (!SendDisabled && !string.IsNullOrWhiteSpace(UserPrompt) && SelectedAgentId.HasValue)
         {
             _chatHistory.Add(new(ChatRole.User, UserPrompt));
-            await _hubConnection.SendAsync("ProcessUserPrompt", SelectedAgentId, _chatHistory);
+            await _hubConnection.SendAsync("ProcessUserPrompt", SelectedAgentId.Value, _chatHistory);
             UserPrompt = string.Empty;
             SendDisabled = true; // Disable the input field while waiting for a response.
         }
@@ -217,15 +217,20 @@
 
     private async Task OnAgentChanged(ChangeEventArgs e)
     {
-        SelectedAgentId = e.Value?.ToString();
-        await StartAgent();
+        if (Guid.TryParse(e.Value?.ToString(), out var agentId))
+        {
+            SelectedAgentId = agentId;
+            await StartAgent();
+        }
     }
 
     private async Task StartAgent()
     {
+        if (!SelectedAgentId.HasValue) return;
+        
         _chatHistory.Clear();
         SendDisabled = true;
-        await _hubConnection.SendAsync("StartAgent", SelectedAgentId);
+        await _hubConnection.SendAsync("StartAgent", SelectedAgentId.Value);
     }
 
     /// <summary>

@@ -21,13 +21,13 @@ public class ChatHub : Hub
         _toolProvider = toolProvider;
     }
 
-    public async Task ProcessUserPrompt(string AgentId, List<ChatMessage> chatHistory)
+    public async Task ProcessUserPrompt(Guid AgentId, List<ChatMessage> chatHistory)
     {
         // Return message to the originating client
         string originatingConnectionId = Context.ConnectionId;
 
         // Get system prompt and prepend
-        var agent = _dbContext.Agents.Where(agent => agent.Id.ToString() == AgentId).First();
+        var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
         ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
         chatHistory.Insert(0, systemPromptMessage);
         
@@ -43,11 +43,10 @@ public class ChatHub : Hub
         }
     }
 
-    public async Task StartAgent(string AgentId)
+    public async Task StartAgent(Guid AgentId)
     {
         string originatingConnectionId = Context.ConnectionId;
-        Guid requestedAgentId = Guid.Parse(AgentId);
-        var agent = _dbContext.Agents.Where(agent => agent.Id == requestedAgentId).First();
+        var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
         ChatMessage systemInstructionsMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
         ChatMessage startupMessage = new ChatMessage(ChatRole.User, "You are now starting to run. Please respond with your first greeting message.");
         List<ChatMessage> chatHistory = [systemInstructionsMessage, startupMessage];
