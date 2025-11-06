@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Sdk Name="Aspire.AppHost.Sdk" Version="9.2.1" />
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,15 +11,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SwaggerUi.Aspire.Hosting\SwaggerUi.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\LocalAgent.ApiService\LocalAgent.ApiService.csproj" />
     <ProjectReference Include="..\LocalAgent.Web\LocalAgent.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="9.4.0" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.SQLite" Version="9.4.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="9.9.0" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.SQLite" Version="9.9.0" />
   </ItemGroup>
 
 </Project>

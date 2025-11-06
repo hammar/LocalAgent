@@ -4,6 +4,7 @@ using LocalAgent.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
 using LocalAgent.ApiService.Models;
 using Swashbuckle.AspNetCore;
+using OllamaSharp;
 
 var builder = WebApplication.CreateBuilder(args);
 
