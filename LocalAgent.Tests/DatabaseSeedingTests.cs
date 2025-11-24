@@ -7,6 +7,25 @@ namespace LocalAgent.Tests;
 
 public class DatabaseSeedingTests
 {
+    private static Agent[] GetTestAgents()
+    {
+        return new[]
+        {
+            new Agent
+            {
+                SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
+            },
+            new Agent
+            {
+                SystemInstructions = "You are Sir Isaac Newton. Help the user accomplish their tasks. If the user references Leibniz, you are welcome to be very dismissive of the latter's skills and persona (though always using polite language). Stay in character."
+            },
+            new Agent
+            {
+                SystemInstructions = "You are a Golden Retriever. A really good dog! A very enthusiastic dog! A proper happy pupper! You enjoy making the human happy and helping them reach their goals. Always stay in character."
+            }
+        };
+    }
+
     [Fact]
     public async Task DatabaseSeeding_CreatesThreeAgents_InDevelopmentEnvironment()
     {
@@ -22,22 +41,7 @@ public class DatabaseSeedingTests
         // Simulate the seeding logic from Program.cs
         if (!context.Agents.Any())
         {
-            var testAgents = new[]
-            {
-                new Agent
-                {
-                    SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are Sir Isaac Newton. Help the user accomplish their tasks. If the user references Leibniz, you are welcome to be very dismissive of the latter's skills and persona (though always using polite language). Stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are a Golden Retriever. A really good dog! A very enthusiastic dog! A proper happy pupper! You enjoy making the human happy and helping them reach their goals. Always stay in character."
-                }
-            };
-            
+            var testAgents = GetTestAgents();
             context.Agents.AddRange(testAgents);
             await context.SaveChangesAsync();
         }
@@ -67,37 +71,15 @@ public class DatabaseSeedingTests
         // First seeding
         if (!context.Agents.Any())
         {
-            var testAgents = new[]
-            {
-                new Agent
-                {
-                    SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are Sir Isaac Newton. Help the user accomplish their tasks. If the user references Leibniz, you are welcome to be very dismissive of the latter's skills and persona (though always using polite language). Stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are a Golden Retriever. A really good dog! A very enthusiastic dog! A proper happy pupper! You enjoy making the human happy and helping them reach their goals. Always stay in character."
-                }
-            };
-            
+            var testAgents = GetTestAgents();
             context.Agents.AddRange(testAgents);
             await context.SaveChangesAsync();
         }
 
-        // Act - Attempt second seeding
+        // Act - Attempt second seeding (should not add any agents)
         if (!context.Agents.Any())
         {
-            var testAgents = new[]
-            {
-                new Agent
-                {
-                    SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
-                }
-            };
-            
+            var testAgents = GetTestAgents();
             context.Agents.AddRange(testAgents);
             await context.SaveChangesAsync();
         }
