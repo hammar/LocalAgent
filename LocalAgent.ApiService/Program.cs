@@ -27,7 +27,6 @@ builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("ll
                 .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
                 .UseLogging();
 
-
 builder.Services.AddSingleton<IClientTransport>(sp =>
 {
     var mcpServerEndpoint = builder.Configuration.GetConnectionString("McpServer")!;
@@ -35,8 +34,9 @@ builder.Services.AddSingleton<IClientTransport>(sp =>
     return new HttpClientTransport(transportOptions);
 });
 builder.Services.AddSingleton<McpClientHost>();
-builder.Services.AddHostedService<McpClientHost>();
-builder.Services.AddSingleton<McpClient>(p => p.GetRequiredService<McpClientHost>().Client);
+// The below is to ensure late initialization of the _client field in McpClientHost, 
+// since we do not want McpClient.CreateAsync slowing down program start.
+builder.Services.AddHostedService(sp => sp.GetRequiredService<McpClientHost>()); 
 
 builder.Services.AddSingleton<IToolProvider, DefaultToolProvider>();
 builder.Services.AddSingleton<IToolProvider, McpToolProvider>();

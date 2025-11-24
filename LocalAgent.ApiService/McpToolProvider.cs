@@ -8,17 +8,16 @@ namespace LocalAgent.ApiService;
 
 public class McpToolProvider : IToolProvider
 {
-    private McpClient _client;
+    private McpClientHost _mcpClientHost;
 
-    public McpToolProvider(McpClient client)
+    public McpToolProvider(McpClientHost mcpClientHost)
     {
-        _client = client;
+        _mcpClientHost = mcpClientHost;
     }
 
     public async Task<IEnumerable<AITool>> GetToolsAsync()
     {
-        
-        return await _client.ListToolsAsync();
+        return await _mcpClientHost.Client.ListToolsAsync();
     }
 
     /// <summary>
