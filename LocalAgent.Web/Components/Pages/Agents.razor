@@ -17,7 +17,7 @@ else
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Id</th>
+                <th>Name</th>
                 <th>System Instructions</th>
                 <th>Actions</th>
             </tr>
@@ -26,7 +26,7 @@ else
             @foreach (var agent in AllAgents)
             {
                 <tr>
-                    <td>@agent.Id</td>
+                    <td>@agent.Name</td>
                     <td>@agent.SystemInstructions</td>
                     <td>
                         <button class="btn btn-sm btn-secondary me-2" @onclick="() => EditAgent(agent)">Edit</button>
@@ -43,6 +43,10 @@ else
     <EditForm Model="EditModel" OnValidSubmit="HandleValidSubmit">
         <DataAnnotationsValidator />
         <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="EditModel.Name" />
+        </div>
         <div class="mb-3">
             <label class="form-label">System Instructions</label>
             <InputTextArea class="form-control" @bind-Value="EditModel.SystemInstructions" />
@@ -83,7 +87,7 @@ else
 
     private void EditAgent(AgentDto agent)
     {
-        EditModel = new AgentDto { Id = agent.Id, SystemInstructions = agent.SystemInstructions };
+        EditModel = new AgentDto { Id = agent.Id, Name = agent.Name, SystemInstructions = agent.SystemInstructions };
         IsEdit = true;
         ShowForm = true;
         StateHasChanged();
@@ -124,6 +128,7 @@ else
     public class AgentDto
     {
         public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string SystemInstructions { get; set; } = string.Empty;
     }
 }

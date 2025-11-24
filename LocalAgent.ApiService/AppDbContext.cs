@@ -17,6 +17,8 @@ namespace LocalAgent.ApiService.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id)
                       .ValueGeneratedOnAdd();
+                entity.Property(e => e.Name)
+                      .IsRequired();
                 entity.Property(e => e.SystemInstructions)
                       .IsRequired();
             });
