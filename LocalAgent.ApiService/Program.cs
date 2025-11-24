@@ -21,11 +21,11 @@ builder.AddSqliteDbContext<AppDbContext>(name: "sqlite");
 
 builder.Services.AddSignalR();
 
-builder.AddKeyedOllamaSharpChatClient("llama32");
-builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("llama32"))
-                .UseFunctionInvocation()
-                .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
-                .UseLogging();
+builder.AddKeyedOllamaApiClient("llama32")
+    .AddChatClient()
+    .UseFunctionInvocation()
+    .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
+    .UseLogging();
 
 builder.Services.AddSingleton<IClientTransport>(sp =>
 {
