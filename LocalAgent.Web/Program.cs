@@ -3,12 +3,15 @@ using LocalAgent.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+Console.WriteLine("ASPNETCORE_STATICWEBASSETS=" + Environment.GetEnvironmentVariable("ASPNETCORE_STATICWEBASSETS"));
+
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
 
 
 builder.Services.AddHttpClient("DefaultClient", client =>
@@ -17,6 +20,8 @@ builder.Services.AddHttpClient("DefaultClient", client =>
     // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
     client.BaseAddress = new("https+http://apiservice");
 });
+
+builder.WebHost.UseStaticWebAssets();
 
 builder.Services.AddOutputCache();
 
@@ -31,6 +36,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseAntiforgery();
 
 app.UseOutputCache();
@@ -38,7 +45,8 @@ app.UseOutputCache();
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode();
 
 app.MapDefaultEndpoints();
 

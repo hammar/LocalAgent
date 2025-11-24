@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using LocalAgent.ApiService.Models;
 using Swashbuckle.AspNetCore;
 using OllamaSharp;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,11 +27,23 @@ builder.Services.AddChatClient(sp => sp.GetRequiredKeyedService<IChatClient>("ll
                 .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
                 .UseLogging();
 
+
+builder.Services.AddSingleton<IClientTransport>(sp =>
+{
+    var mcpServerEndpoint = builder.Configuration.GetConnectionString("McpServer")!;
+    var transportOptions = new HttpClientTransportOptions { Endpoint = new Uri(mcpServerEndpoint) };
+    return new HttpClientTransport(transportOptions);
+});
+builder.Services.AddSingleton<McpClientHost>();
+builder.Services.AddHostedService<McpClientHost>();
+builder.Services.AddSingleton<McpClient>(p => p.GetRequiredService<McpClientHost>().Client);
+
 builder.Services.AddSingleton<IToolProvider, DefaultToolProvider>();
+builder.Services.AddSingleton<IToolProvider, McpToolProvider>();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen();   
 
 var app = builder.Build();
 

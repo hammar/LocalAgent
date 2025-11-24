@@ -6,4 +6,6 @@ namespace LocalAgent.ApiService;
 public interface IToolProvider
 {
     public IEnumerable<AITool> GetTools();
+
+    public Task<IEnumerable<AITool>> GetToolsAsync();
 }

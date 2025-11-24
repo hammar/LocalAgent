@@ -11,8 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LocalAgent.ApiService\LocalAgent.ApiService.csproj" />
-    <ProjectReference Include="..\LocalAgent.Web\LocalAgent.Web.csproj" />
+    <ProjectReference Include="../LocalAgent.McpServer/LocalAgent.McpServer.csproj" />
+    <ProjectReference Include="../LocalAgent.ApiService/LocalAgent.ApiService.csproj" />
+    <ProjectReference Include="../LocalAgent.Web/LocalAgent.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

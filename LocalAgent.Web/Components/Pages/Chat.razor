@@ -108,7 +108,7 @@
             SelectedAgentId = AllAgents[0].Id;
         }
 
-        var backendUrl = Configuration["services:apiservice:http:0"];
+        var backendUrl = Configuration["services:apiservice:https:0"];
         if (string.IsNullOrWhiteSpace(backendUrl))
         {
             throw new InvalidOperationException("Backend URL is not configured.");

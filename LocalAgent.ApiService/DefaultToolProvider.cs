@@ -17,6 +17,11 @@ public class DefaultToolProvider : IToolProvider
         return [AIFunctionFactory.Create(LogDebugMessage, "LogDebugMessage", "Logs a standard debug message.")];
     }
 
+    public Task<IEnumerable<AITool>> GetToolsAsync()
+    {
+        return Task.FromResult(GetTools());
+    }
+
     private void LogDebugMessage()
     {
         _logger.LogDebug("{MethodName} was called", nameof(LogDebugMessage));

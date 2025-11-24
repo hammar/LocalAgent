@@ -11,14 +11,14 @@ public class ChatHub : Hub
     private ILogger<ChatHub> _logger;
     private readonly IChatClient _chatClient;
     private readonly AppDbContext _dbContext;
-    private readonly IToolProvider _toolProvider;
+    private readonly IEnumerable<IToolProvider> _toolProviders;
 
-    public ChatHub(ILogger<ChatHub> logger, IChatClient chatClient, AppDbContext dbContext, IToolProvider toolProvider)
+    public ChatHub(ILogger<ChatHub> logger, IChatClient chatClient, AppDbContext dbContext, IEnumerable<IToolProvider> toolProviders)
     {
         _logger = logger;
         _chatClient = chatClient;
         _dbContext = dbContext;
-        _toolProvider = toolProvider;
+        _toolProviders = toolProviders;
     }
 
     public async Task ProcessUserPrompt(Guid AgentId, List<ChatMessage> chatHistory)
@@ -31,10 +31,16 @@ public class ChatHub : Hub
         ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
         chatHistory.Insert(0, systemPromptMessage);
         
+        // Get all available tools in parallel and flatten
+        var toolRetrievalTasks = _toolProviders
+            .Select(provider => provider.GetToolsAsync())
+            .ToList();
+        var allTools = (await Task.WhenAll(toolRetrievalTasks)).SelectMany(tools => tools).ToList();
+
         var chatOptions = new ChatOptions
         {
             ToolMode = ChatToolMode.Auto,
-            Tools = _toolProvider.GetTools().ToList(),
+            Tools = allTools,
         };
         var responses = _chatClient.GetStreamingResponseAsync(chatHistory, chatOptions);
         await foreach (ChatResponseUpdate response in responses)
