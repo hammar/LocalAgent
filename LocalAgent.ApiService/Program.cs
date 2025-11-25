@@ -52,33 +52,10 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
-    
-    // Seed initial data in development environment only
-    if (app.Environment.IsDevelopment())
-    {
-        if (!dbContext.Agents.Any())
-        {
-            var testAgents = new[]
-            {
-                new Agent
-                {
-                    SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are Sir Isaac Newton. Help the user accomplish their tasks. If the user references Leibniz, you are welcome to be very dismissive of the latter's skills and persona (though always using polite language). Stay in character."
-                },
-                new Agent
-                {
-                    SystemInstructions = "You are a Golden Retriever. A really good dog! A very enthusiastic dog! A proper happy pupper! You enjoy making the human happy and helping them reach their goals. Always stay in character."
-                }
-            };
-            
-            dbContext.Agents.AddRange(testAgents);
-            dbContext.SaveChanges();
-        }
-    }
 }
+
+// Seed development data
+DbInitializer.InitializeForDevelopment(app);
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
