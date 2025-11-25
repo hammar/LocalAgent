@@ -1,5 +1,6 @@
 @page "/agents"
 @rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
 @inject IHttpClientFactory HttpClientFactory
 
 <h3>Agents</h3>
@@ -46,10 +47,12 @@ else
         <div class="mb-3">
             <label class="form-label">Name</label>
             <InputText class="form-control" @bind-Value="EditModel.Name" />
+            <ValidationMessage For="@(() => EditModel.Name)" />
         </div>
         <div class="mb-3">
             <label class="form-label">System Instructions</label>
             <InputTextArea class="form-control" @bind-Value="EditModel.SystemInstructions" />
+            <ValidationMessage For="@(() => EditModel.SystemInstructions)" />
         </div>
         <button class="btn btn-success me-2" type="submit">Save</button>
         <button class="btn btn-secondary" type="button" @onclick="HideForm">Cancel</button>
@@ -128,7 +131,9 @@ else
     public class AgentDto
     {
         public Guid Id { get; set; }
+        [Required(ErrorMessage = "Name is required.")]
         public string Name { get; set; } = string.Empty;
+        [Required(ErrorMessage = "System Instructions is required.")]
         public string SystemInstructions { get; set; } = string.Empty;
     }
 }
