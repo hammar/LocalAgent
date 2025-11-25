@@ -54,6 +54,12 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
+// Seed development data
+if (app.Environment.IsDevelopment())
+{
+    DbInitializer.Initialize(app);
+}
+
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
