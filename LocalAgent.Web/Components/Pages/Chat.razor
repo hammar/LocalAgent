@@ -15,7 +15,7 @@
     <select id="agentSelect" value="@SelectedAgentId" @onchange="OnAgentChanged" style="padding: 4px 8px;">
         @foreach (var agent in AllAgents)
         {
-            <option value="@agent.Id">@agent.Id</option>
+            <option value="@agent.Id">@agent.Name</option>
         }
     </select>
 </div>
