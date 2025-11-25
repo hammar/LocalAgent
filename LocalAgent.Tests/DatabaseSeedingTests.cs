@@ -13,14 +13,17 @@ public class DatabaseSeedingTests
         {
             new Agent
             {
+                Name = "The Dude",
                 SystemInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude. Help the user accomplish their tasks. Always stay in character."
             },
             new Agent
             {
+                Name = "Sir Isaac Newton",
                 SystemInstructions = "You are Sir Isaac Newton. Help the user accomplish their tasks. If the user references Leibniz, you are welcome to be very dismissive of the latter's skills and persona (though always using polite language). Stay in character."
             },
             new Agent
             {
+                Name = "Golden Retriever",
                 SystemInstructions = "You are a Golden Retriever. A really good dog! A very enthusiastic dog! A proper happy pupper! You enjoy making the human happy and helping them reach their goals. Always stay in character."
             }
         };
@@ -51,9 +54,9 @@ public class DatabaseSeedingTests
 
         // Assert
         Assert.Equal(3, agents.Count);
-        Assert.Contains(agents, a => a.SystemInstructions.Contains("The Dude Lebowski"));
-        Assert.Contains(agents, a => a.SystemInstructions.Contains("Sir Isaac Newton"));
-        Assert.Contains(agents, a => a.SystemInstructions.Contains("Golden Retriever"));
+        Assert.Contains(agents, a => a.Name == "The Dude" && a.SystemInstructions.Contains("The Dude Lebowski"));
+        Assert.Contains(agents, a => a.Name == "Sir Isaac Newton" && a.SystemInstructions.Contains("Sir Isaac Newton"));
+        Assert.Contains(agents, a => a.Name == "Golden Retriever" && a.SystemInstructions.Contains("Golden Retriever"));
     }
 
     [Fact]

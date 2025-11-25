@@ -55,7 +55,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Seed development data
-DbInitializer.InitializeForDevelopment(app);
+if (app.Environment.IsDevelopment())
+{
+    DbInitializer.Initialize(app);
+}
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
