@@ -59,21 +59,15 @@ builder.Services.AddScoped<GraphServiceClient>(sp =>
     }
     else if (hasEntraAppConfig)
     {
-        // Production without user context: Use ClientSecretCredential (app-only)
-        logger.LogWarning("Using ClientSecretCredential for app-only access. No user token found. " +
-            "For OBO flow, ensure the Authorization header contains a valid user token.");
-        
-        if (string.IsNullOrWhiteSpace(graphOptions.ClientSecret))
-        {
-            throw new InvalidOperationException(
-                "ClientSecret is required when TenantId and ClientId are configured. " +
-                "Configure the secret using environment variables, Azure Key Vault, or user secrets.");
-        }
-        
-        credential = new ClientSecretCredential(
-            graphOptions.TenantId,
-            graphOptions.ClientId,
-            graphOptions.ClientSecret);
+        // Production without user context: This is a security issue
+        // Using ClientSecretCredential would grant app-level access, potentially allowing
+        // the calling user to access data they shouldn't have permissions for.
+        // In production, we require user authentication via OBO flow.
+        throw new InvalidOperationException(
+            "Production mode requires user authentication. " +
+            "The Authorization header with a valid bearer token must be present in the request. " +
+            "Falling back to ClientSecretCredential (app-only access) would be a security risk, " +
+            "as it could grant users access to data beyond their permissions.");
     }
     else
     {

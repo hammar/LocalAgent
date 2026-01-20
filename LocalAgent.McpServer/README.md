@@ -67,14 +67,10 @@ The application automatically detects the authentication mode based on configura
 - Uses **OnBehalfOfCredential** to exchange the user's token for a Microsoft Graph token
 - The application acts on behalf of the authenticated user, using their identity and permissions
 - Requires: `TenantId`, `ClientId`, `ClientSecret`, and a valid user bearer token in the request
-- This is the **recommended production mode** for user-specific operations
+- This is the **required production mode** - requests without a valid user token will fail with an error
+- **Security**: Prevents unauthorized access by ensuring operations are performed with the user's permissions only
 
-**Production Mode with App-Only Authentication:**
-- Triggered when `TenantId` and `ClientId` are configured but NO user token is provided
-- Uses **ClientSecretCredential** for app-only access
-- The application uses its own identity (not a user's)
-- Should only be used for scenarios where user context is not available
-- Requires: `TenantId`, `ClientId`, and `ClientSecret`
+> **Important Security Note**: In production (when TenantId and ClientId are configured), a user token **must** be provided in the Authorization header. The application will throw an error if no user token is present, preventing a security risk where the application might use elevated app-only permissions that could grant users access to data beyond their individual permissions.
 
 ### Production Configuration
 
@@ -100,12 +96,26 @@ Update the `appsettings.json` or use environment variables/user secrets to confi
 For production deployments where you want to act on behalf of the authenticated user:
 
 1. **Configure the Entra App** with the settings above
-2. **Ensure the calling application** (e.g., Web or ApiService) includes the user's access token in the `Authorization` header when making requests to the MCP server:
-   ```
-   Authorization: Bearer <user-access-token>
-   ```
-3. The MCP server will automatically detect the user token and use the OBO flow to obtain a Microsoft Graph token with the user's permissions
-4. All Microsoft Graph operations will be performed with the user's identity and permissions
+
+2. **Set up Authentication in the Calling Application**: 
+   - The calling application (e.g., Web or ApiService) must implement user authentication (e.g., using Microsoft.Identity.Web or similar)
+   - The calling application should obtain an access token for the authenticated user
+   - When making HTTP requests to the MCP server, include the user's access token in the `Authorization` header:
+     ```
+     Authorization: Bearer <user-access-token>
+     ```
+
+3. **The MCP server will**:
+   - Validate that the Authorization header is present (in production mode)
+   - Extract the user token from the header
+   - Use the OBO flow to exchange it for a Microsoft Graph token
+   - All Microsoft Graph operations will be performed with the user's identity and permissions
+
+4. **If no Authorization header is present** in production mode (when TenantId/ClientId are configured):
+   - The request will fail with an `InvalidOperationException`
+   - This is a security feature to prevent unauthorized access
+
+> **Note**: Currently, the MCP server does not implement authentication middleware itself. The calling application is responsible for authenticating users and passing their tokens. Future enhancements could add authentication middleware to the MCP server for defense-in-depth.
 
 ### Local Development
 
