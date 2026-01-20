@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Runtime.CompilerServices;
 
 namespace LocalAgent.Tests;
 
@@ -43,6 +44,15 @@ public class ChatHubTests
         };
 
         return (chatHub, mockClientProxy, mockChatClient);
+    }
+
+    private static async IAsyncEnumerable<T> AsAsyncEnumerable<T>(IEnumerable<T> source)
+    {
+        foreach (var item in source)
+        {
+            yield return item;
+        }
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -126,5 +136,52 @@ public class ChatHubTests
         // Assert
         Assert.NotNull(capturedResponse);
         Assert.Contains("Golden Retriever", capturedResponse!.Text);
+    }
+
+    [Fact]
+    public async Task ProcessUserPrompt_IncludesCurrentDateTime_InSystemInstructions()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var testAgent = new Agent
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Agent",
+            SystemInstructions = "You are a helpful assistant."
+        };
+        context.Agents.Add(testAgent);
+        await context.SaveChangesAsync();
+
+        var (chatHub, mockClientProxy, mockChatClient) = SetupChatHub(context);
+
+        IEnumerable<ChatMessage>? capturedChatHistory = null;
+        mockChatClient
+            .Setup(c => c.GetStreamingResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ChatMessage>, ChatOptions, CancellationToken>((messages, options, token) =>
+            {
+                capturedChatHistory = messages;
+            })
+            .Returns(() => AsAsyncEnumerable(new List<ChatResponseUpdate>()));
+
+        var chatHistory = new List<ChatMessage>
+        {
+            new ChatMessage(ChatRole.User, "What tasks are due today?")
+        };
+
+        // Act
+        await chatHub.ProcessUserPrompt(testAgent.Id, chatHistory);
+
+        // Assert
+        Assert.NotNull(capturedChatHistory);
+        Assert.NotEmpty(capturedChatHistory);
+        
+        var systemMessage = capturedChatHistory.First(m => m.Role == ChatRole.System);
+        Assert.NotNull(systemMessage);
+        Assert.Contains("You are a helpful assistant.", systemMessage.Text);
+        Assert.Contains("Current date and time:", systemMessage.Text);
+        Assert.Contains("UTC", systemMessage.Text);
     }
 }
