@@ -47,20 +47,11 @@ public class ChatHubTests
     }
 
     [Fact]
-    public void GetSystemInstructionsWithDateTime_AppendsCurrentDateTime()
+    public async Task GetSystemInstructionsWithDateTime_AppendsCurrentDateTime()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<ChatHub>>();
-        var mockChatClient = new Mock<IChatClient>();
-        var mockToolProviders = new List<IToolProvider>();
-        
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("Data Source=:memory:")
-            .Options;
-        
-        using var context = new AppDbContext(options);
-        
-        var chatHub = new ChatHub(mockLogger.Object, mockChatClient.Object, context, mockToolProviders);
+        await using var context = CreateInMemoryContext();
+        var (chatHub, _, _) = SetupChatHub(context);
         
         // Act - Use reflection to call the private method
         var methodInfo = typeof(ChatHub).GetMethod("GetSystemInstructionsWithDateTime", 
@@ -77,20 +68,11 @@ public class ChatHubTests
     }
 
     [Fact]
-    public void GetSystemInstructionsWithDateTime_PreservesOriginalInstructions()
+    public async Task GetSystemInstructionsWithDateTime_PreservesOriginalInstructions()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<ChatHub>>();
-        var mockChatClient = new Mock<IChatClient>();
-        var mockToolProviders = new List<IToolProvider>();
-        
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("Data Source=:memory:")
-            .Options;
-        
-        using var context = new AppDbContext(options);
-        
-        var chatHub = new ChatHub(mockLogger.Object, mockChatClient.Object, context, mockToolProviders);
+        await using var context = CreateInMemoryContext();
+        var (chatHub, _, _) = SetupChatHub(context);
         var originalInstructions = "You are The Dude Lebowski. You are a chill and relaxed dude.";
         
         // Act - Use reflection to call the private method
