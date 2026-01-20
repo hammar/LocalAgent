@@ -23,8 +23,8 @@ public class ChatHub : Hub
 
     private string GetSystemInstructionsWithDateTime(string baseInstructions)
     {
-        var currentDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        return $"{baseInstructions}\n\nCurrent date and time: {currentDateTime}";
+        var currentDateTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        return $"{baseInstructions}\n\nCurrent date and time (UTC): {currentDateTime}";
     }
 
     public async Task ProcessUserPrompt(Guid AgentId, List<ChatMessage> chatHistory)
