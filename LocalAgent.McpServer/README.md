@@ -33,19 +33,24 @@ To use the Microsoft To-Do tool, you need:
    - Add `Tasks.Read` and `Tasks.ReadWrite`
    - Click "Grant admin consent" (if you have admin rights)
 
-3. **Create a Client Secret** (for production deployments):
+3. **Enable On-Behalf-Of Flow** (for production):
+   - In your app registration, go to "Expose an API"
+   - Click "Add a scope" to define at least one scope (if not already done)
+   - Note: The calling application (Web/ApiService) will need to be configured to request tokens for this API
+
+4. **Create a Client Secret** (for production deployments):
    - Go to "Certificates & secrets"
    - Click "New client secret"
    - Provide a description and expiration
    - Copy the secret value (you won't be able to see it again!)
 
-4. **Note your Application Details**:
+5. **Note your Application Details**:
    - Copy the **Application (client) ID** from the Overview page
    - Copy the **Directory (tenant) ID** from the Overview page
 
 ### Configuration
 
-The application automatically detects whether to use local development or production authentication based on the configuration:
+The application automatically detects the authentication mode based on configuration and request context:
 
 **Local Development Mode:**
 - Triggered when `TenantId` or `ClientId` are empty/missing in configuration
@@ -57,10 +62,19 @@ The application automatically detects whether to use local development or produc
   5. Interactive browser (as a fallback)
 - No configuration required in `appsettings.json`
 
-**Production Mode:**
-- Triggered when `TenantId` and `ClientId` are configured
-- Uses **ClientSecretCredential** for app-only authentication
-- Requires all three values: `TenantId`, `ClientId`, and `ClientSecret`
+**Production Mode with On-Behalf-Of (OBO) Flow:**
+- Triggered when `TenantId` and `ClientId` are configured AND a user token is provided via the `Authorization` header
+- Uses **OnBehalfOfCredential** to exchange the user's token for a Microsoft Graph token
+- The application acts on behalf of the authenticated user, using their identity and permissions
+- Requires: `TenantId`, `ClientId`, `ClientSecret`, and a valid user bearer token in the request
+- This is the **recommended production mode** for user-specific operations
+
+**Production Mode with App-Only Authentication:**
+- Triggered when `TenantId` and `ClientId` are configured but NO user token is provided
+- Uses **ClientSecretCredential** for app-only access
+- The application uses its own identity (not a user's)
+- Should only be used for scenarios where user context is not available
+- Requires: `TenantId`, `ClientId`, and `ClientSecret`
 
 ### Production Configuration
 
@@ -80,6 +94,18 @@ Update the `appsettings.json` or use environment variables/user secrets to confi
 ```
 
 > **Security Note:** Never store secrets in `appsettings.json` in production. Use Azure Key Vault, environment variables, or user secrets instead.
+
+### On-Behalf-Of (OBO) Flow
+
+For production deployments where you want to act on behalf of the authenticated user:
+
+1. **Configure the Entra App** with the settings above
+2. **Ensure the calling application** (e.g., Web or ApiService) includes the user's access token in the `Authorization` header when making requests to the MCP server:
+   ```
+   Authorization: Bearer <user-access-token>
+   ```
+3. The MCP server will automatically detect the user token and use the OBO flow to obtain a Microsoft Graph token with the user's permissions
+4. All Microsoft Graph operations will be performed with the user's identity and permissions
 
 ### Local Development
 
