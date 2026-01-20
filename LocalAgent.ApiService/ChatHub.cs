@@ -28,7 +28,9 @@ public class ChatHub : Hub
 
         // Get system prompt and prepend
         var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
-        ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
+        var currentDateTime = DateTime.UtcNow;
+        var systemInstructionsWithDateTime = $"{agent.SystemInstructions}\n\nCurrent date and time: {currentDateTime:yyyy-MM-dd HH:mm:ss} UTC";
+        ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, systemInstructionsWithDateTime);
         chatHistory.Insert(0, systemPromptMessage);
         
         // Get all available tools in parallel and flatten
