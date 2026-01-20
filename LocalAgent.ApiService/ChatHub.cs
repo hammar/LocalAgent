@@ -60,14 +60,17 @@ public class ChatHub : Hub
     {
         string originatingConnectionId = Context.ConnectionId;
         var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
-        var systemInstructionsWithDateTime = GetSystemInstructionsWithDateTime(agent.SystemInstructions);
-        ChatMessage systemInstructionsMessage = new ChatMessage(ChatRole.System, systemInstructionsWithDateTime);
-        ChatMessage startupMessage = new ChatMessage(ChatRole.User, "You are now starting to run. Please respond with your first greeting message.");
-        List<ChatMessage> chatHistory = [systemInstructionsMessage, startupMessage];
-        var responses = _chatClient.GetStreamingResponseAsync(chatHistory);
-        await foreach (ChatResponseUpdate response in responses)
+        
+        // Send a standard greeting message instead of calling the LLM
+        string greetingText = $"Hello, my name is {agent.Name}, what can I do for you today?";
+        
+        // Create a single response update with the greeting
+        var greetingResponse = new ChatResponseUpdate(ChatRole.Assistant, greetingText)
         {
-            await Clients.Client(originatingConnectionId).SendAsync("ProcessAgentResponse", response);
-        }
+            ResponseId = Guid.NewGuid().ToString(),
+            FinishReason = ChatFinishReason.Stop
+        };
+        
+        await Clients.Client(originatingConnectionId).SendAsync("ProcessAgentResponse", greetingResponse);
     }
 }
