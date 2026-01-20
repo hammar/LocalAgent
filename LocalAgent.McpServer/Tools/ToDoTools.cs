@@ -22,7 +22,7 @@ public sealed class ToDoTools
         _graphClient = graphClient;
     }
 
-    [McpServerTool, Description("Get all To-Do task lists for the authenticated user.")]
+    [McpServerTool, Description("Get all To-Do task lists for the user.")]
     public async Task<string> GetTaskLists()
     {
         _logger.LogInformation("Fetching To-Do task lists");
@@ -58,7 +58,7 @@ public sealed class ToDoTools
 
     [McpServerTool, Description("Get tasks from a specific To-Do list.")]
     public async Task<string> GetTasksByList(
-        [Description("The ID of the task list to retrieve tasks from.")] string listId)
+        [Description("The unique alphanumeric ID of the task list. DO NOT use the display name (e.g., 'Work'). This MUST be the 'id' property returned by the GetTaskLists tool. Example: 'AAMkAGI3...'")] string listId)
     {
         _logger.LogInformation("Fetching tasks from list: {ListId}", listId);
 
