@@ -24,20 +24,8 @@ public class ChatHubTests
         return context;
     }
 
-    [Fact]
-    public async Task StartAgent_SendsStandardGreeting_WithoutCallingLLM()
+    private (ChatHub chatHub, Mock<ISingleClientProxy> mockClientProxy, Mock<IChatClient> mockChatClient) SetupChatHub(AppDbContext context)
     {
-        // Arrange
-        await using var context = CreateInMemoryContext();
-        var testAgent = new Agent
-        {
-            Id = Guid.NewGuid(),
-            Name = "Test Agent",
-            SystemInstructions = "You are a test agent."
-        };
-        context.Agents.Add(testAgent);
-        await context.SaveChangesAsync();
-
         var mockLogger = new Mock<ILogger<ChatHub>>();
         var mockChatClient = new Mock<IChatClient>();
         var mockToolProviders = new List<IToolProvider>();
@@ -53,6 +41,25 @@ public class ChatHubTests
             Clients = mockClients.Object,
             Context = mockHubCallerContext.Object
         };
+
+        return (chatHub, mockClientProxy, mockChatClient);
+    }
+
+    [Fact]
+    public async Task StartAgent_SendsStandardGreeting_WithoutCallingLLM()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var testAgent = new Agent
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Agent",
+            SystemInstructions = "You are a test agent."
+        };
+        context.Agents.Add(testAgent);
+        await context.SaveChangesAsync();
+
+        var (chatHub, mockClientProxy, mockChatClient) = SetupChatHub(context);
 
         ChatResponseUpdate? capturedResponse = null;
         mockClientProxy
@@ -99,21 +106,7 @@ public class ChatHubTests
         context.Agents.Add(testAgent);
         await context.SaveChangesAsync();
 
-        var mockLogger = new Mock<ILogger<ChatHub>>();
-        var mockChatClient = new Mock<IChatClient>();
-        var mockToolProviders = new List<IToolProvider>();
-        var mockClients = new Mock<IHubCallerClients>();
-        var mockClientProxy = new Mock<ISingleClientProxy>();
-        var mockHubCallerContext = new Mock<HubCallerContext>();
-        
-        mockHubCallerContext.Setup(c => c.ConnectionId).Returns("test-connection-id");
-        mockClients.Setup(c => c.Client(It.IsAny<string>())).Returns(mockClientProxy.Object);
-
-        var chatHub = new ChatHub(mockLogger.Object, mockChatClient.Object, context, mockToolProviders)
-        {
-            Clients = mockClients.Object,
-            Context = mockHubCallerContext.Object
-        };
+        var (chatHub, mockClientProxy, _) = SetupChatHub(context);
 
         ChatResponseUpdate? capturedResponse = null;
         mockClientProxy
@@ -135,3 +128,4 @@ public class ChatHubTests
         Assert.Contains("Golden Retriever", capturedResponse!.Text);
     }
 }
+
