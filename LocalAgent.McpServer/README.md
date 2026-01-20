@@ -11,43 +11,41 @@ The To-Do tool allows you to query Microsoft To-Do tasks using the Microsoft Gra
 
 ### Authentication
 
-The Microsoft To-Do tool uses **DefaultAzureCredential** to authenticate with Microsoft Graph. This means it will automatically use your existing Azure credentials without requiring any configuration or Entra app registration.
+The Microsoft To-Do tool uses **InteractiveBrowserCredential** to authenticate with Microsoft Graph. When you first use the MCP server, a browser window will open asking you to sign in with your Microsoft account (personal or work/school account).
 
-**Supported authentication methods** (tried in this order):
-1. **Azure CLI** - Run `az login` to authenticate
-2. **Azure PowerShell** - Run `Connect-AzAccount` to authenticate
-3. **Visual Studio** - Sign in through Tools → Options → Azure Service Authentication
-4. **VS Code** - Sign in through the Azure Account extension
-5. **Managed Identity** - If deployed to Azure (e.g., Azure App Service, Azure Functions)
-6. **Environment variables** - For CI/CD scenarios
+**How it works:**
+1. When the MCP server starts and the To-Do tool is first accessed, an interactive browser login prompt appears
+2. Sign in with your Microsoft account (personal @outlook.com/@hotmail.com or work/school account)
+3. Grant consent for the application to access your To-Do tasks
+4. The credentials are cached, so you won't need to sign in again until they expire
+
+The application uses a pre-registered Azure AD app (`LocalAgent`) with ClientId `8a8525ed-8a70-4eeb-9aed-f04448b4764f` that supports both personal and organizational accounts.
 
 ### Getting Started
 
-1. **Install Azure CLI** (recommended for local development):
-   - Download from [https://docs.microsoft.com/cli/azure/install-azure-cli](https://docs.microsoft.com/cli/azure/install-azure-cli)
-   - Run `az login` and follow the prompts to sign in with your Azure account
-
-2. **Ensure you have access to Microsoft To-Do**:
-   - Your Azure account must have access to Microsoft To-Do in your tenant
-   - The application requests `Tasks.Read` and `Tasks.ReadWrite` permissions
-
-3. **Run the application**:
+1. **Run the application**:
    ```bash
    cd LocalAgent.McpServer
    dotnet run
    ```
 
-The application will automatically detect your Azure credentials and authenticate with Microsoft Graph.
+2. **Sign in when prompted**:
+   - A browser window will open automatically
+   - Sign in with your Microsoft account
+   - Grant the requested permissions (`Tasks.Read` and `Tasks.ReadWrite`)
 
-### Alternative Authentication Methods
+3. **Use the To-Do tools**:
+   - Once authenticated, you can query your To-Do tasks through the MCP tools
 
-If you prefer not to use Azure CLI:
+That's it! No Azure CLI, PowerShell, or IDE configuration needed. Just run and sign in through your browser.
 
-- **Visual Studio**: Sign in through Tools → Options → Azure Service Authentication
-- **VS Code**: Install the Azure Account extension and sign in
-- **Azure PowerShell**: Run `Connect-AzAccount`
+### Permissions
 
-No configuration files or app registrations are needed!
+The application requests the following Microsoft Graph permissions:
+- `Tasks.Read` - Read your To-Do tasks
+- `Tasks.ReadWrite` - Create, read, update, and delete your To-Do tasks
+
+These are the narrowest permissions required for To-Do operations. Additional scopes can be added as new MCP tools are implemented.
 
 ## Available Tools
 
