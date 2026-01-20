@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Runtime.CompilerServices;
 
 namespace LocalAgent.Tests;
 
@@ -52,7 +51,6 @@ public class ChatHubTests
         {
             yield return item;
         }
-        await Task.CompletedTask;
     }
 
     [Fact]
