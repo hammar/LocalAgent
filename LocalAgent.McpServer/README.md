@@ -54,12 +54,13 @@ Update the `appsettings.json` or use environment variables/user secrets to confi
     "ClientId": "your-client-id-here",
     "ClientSecret": "your-client-secret-here",
     "Scopes": [
-      "Tasks.Read",
-      "Tasks.ReadWrite"
+      "https://graph.microsoft.com/.default"
     ]
   }
 }
 ```
+
+> **Note:** The empty values in `appsettings.json` are intentional. These values are **only required for production deployments** where you cannot use DefaultAzureCredential. For local development, DefaultAzureCredential will automatically use your Azure CLI or Visual Studio credentials without requiring these values to be configured.
 
 **For production**: Use Azure Key Vault, environment variables, or other secure configuration methods instead of storing secrets in `appsettings.json`.
 

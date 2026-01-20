@@ -2,6 +2,7 @@ using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.Globalization;
 using System.Text;
 
 namespace LocalAgent.McpServer.Tools;
@@ -88,8 +89,8 @@ public sealed class ToDoTools
 
         try
         {
-            // Parse the date
-            if (!DateTime.TryParse(dueDate, out var parsedDate))
+            // Parse the date using invariant culture for consistent behavior
+            if (!DateTime.TryParse(dueDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
                 return $"Invalid date format: {dueDate}. Please use ISO 8601 format (e.g., 2024-12-31).";
             }
@@ -111,10 +112,13 @@ public sealed class ToDoTools
                 
                 if (tasks?.Value != null)
                 {
-                    // Filter tasks by due date
+                    // Filter tasks by due date, parsing with invariant culture
                     var filteredTasks = tasks.Value.Where(task => 
-                        task.DueDateTime?.DateTime != null && 
-                        DateTime.Parse(task.DueDateTime.DateTime) <= parsedDate);
+                    {
+                        if (task.DueDateTime?.DateTime == null) return false;
+                        return DateTime.TryParse(task.DueDateTime.DateTime, CultureInfo.InvariantCulture, 
+                            DateTimeStyles.None, out var taskDueDate) && taskDueDate <= parsedDate;
+                    });
                     
                     allTasks.AddRange(filteredTasks);
                 }
