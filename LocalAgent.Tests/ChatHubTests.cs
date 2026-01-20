@@ -128,4 +128,3 @@ public class ChatHubTests
         Assert.Contains("Golden Retriever", capturedResponse!.Text);
     }
 }
-
