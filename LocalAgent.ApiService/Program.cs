@@ -24,8 +24,7 @@ builder.Services.AddSignalR();
 builder.AddKeyedOllamaApiClient("llama32")
     .AddChatClient()
     .UseFunctionInvocation()
-    .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true)
-    .UseLogging();
+    .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
 
 builder.Services.AddSingleton<IClientTransport>(sp =>
 {
