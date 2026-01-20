@@ -45,6 +45,25 @@ To use the Microsoft To-Do tool, you need:
 
 ### Configuration
 
+The application automatically detects whether to use local development or production authentication based on the configuration:
+
+**Local Development Mode:**
+- Triggered when `TenantId` or `ClientId` are empty/missing in configuration
+- Uses **DefaultAzureCredential** which tries authentication methods in this order:
+  1. Environment variables (useful for CI/CD)
+  2. Managed Identity (when deployed to Azure)
+  3. Visual Studio/VS Code (automatically uses your IDE login)
+  4. Azure CLI (`az login`)
+  5. Interactive browser (as a fallback)
+- No configuration required in `appsettings.json`
+
+**Production Mode:**
+- Triggered when `TenantId` and `ClientId` are configured
+- Uses **ClientSecretCredential** for app-only authentication
+- Requires all three values: `TenantId`, `ClientId`, and `ClientSecret`
+
+### Production Configuration
+
 Update the `appsettings.json` or use environment variables/user secrets to configure:
 
 ```json
@@ -60,19 +79,11 @@ Update the `appsettings.json` or use environment variables/user secrets to confi
 }
 ```
 
-> **Note:** The empty values in `appsettings.json` are intentional. These values are **only required for production deployments** where you cannot use DefaultAzureCredential. For local development, DefaultAzureCredential will automatically use your Azure CLI or Visual Studio credentials without requiring these values to be configured.
-
-**For production**: Use Azure Key Vault, environment variables, or other secure configuration methods instead of storing secrets in `appsettings.json`.
+> **Security Note:** Never store secrets in `appsettings.json` in production. Use Azure Key Vault, environment variables, or user secrets instead.
 
 ### Local Development
 
-For local development, the tool uses **DefaultAzureCredential**, which automatically tries multiple authentication methods:
-
-1. **Environment variables** (useful for CI/CD)
-2. **Managed Identity** (when deployed to Azure)
-3. **Visual Studio** (automatically uses your VS login)
-4. **Azure CLI** (`az login`)
-5. **Interactive browser** (as a fallback)
+The application automatically uses local development mode when configuration values are not provided.
 
 To use local development authentication:
 
@@ -81,6 +92,10 @@ To use local development authentication:
 3. Ensure your account has access to Microsoft To-Do in your tenant
 
 The application will automatically use your local credentials without needing to configure TenantId, ClientId, or ClientSecret in `appsettings.json`.
+
+Alternative local authentication methods (no additional setup required if you're already signed in):
+- Visual Studio: Sign in through Tools → Options → Azure Service Authentication
+- VS Code: Sign in through the Azure Account extension
 
 ### Testing in Different Tenants
 

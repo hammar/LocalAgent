@@ -1,7 +1,7 @@
 using Azure.Identity;
 using LocalAgent.McpServer;
+using Microsoft.Extensions.Options;
 using Microsoft.Graph;
-using Microsoft.Kiota.Abstractions.Authentication;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Net.Http.Headers;
@@ -14,29 +14,53 @@ builder.AddServiceDefaults();
 builder.Services.Configure<MicrosoftGraphOptions>(
     builder.Configuration.GetSection(MicrosoftGraphOptions.SectionName));
 
-// Configure Microsoft Graph client with DefaultAzureCredential for local development
+// Configure Microsoft Graph client with environment-aware authentication
 builder.Services.AddSingleton<GraphServiceClient>(sp =>
 {
-    var configuration = builder.Configuration;
-    var graphOptions = configuration.GetSection(MicrosoftGraphOptions.SectionName).Get<MicrosoftGraphOptions>();
+    var graphOptions = sp.GetRequiredService<IOptions<MicrosoftGraphOptions>>().Value;
+    var logger = sp.GetRequiredService<ILogger<Program>>();
     
-    // Use DefaultAzureCredential for local development and Azure environments
-    // This will try multiple credential types in order:
-    // 1. Environment variables (for CI/CD)
-    // 2. Managed Identity (for Azure-hosted apps)
-    // 3. Visual Studio/VS Code (for local development)
-    // 4. Azure CLI (for local development)
-    var credential = new DefaultAzureCredential();
+    // Determine if we're in local development or production based on configuration
+    var isLocalDevelopment = string.IsNullOrWhiteSpace(graphOptions.ClientId) || 
+                            string.IsNullOrWhiteSpace(graphOptions.TenantId);
     
-    // Define the scopes needed for Microsoft Graph
-    var scopes = graphOptions?.Scopes?.Any() == true 
+    Azure.Core.TokenCredential credential;
+    string[] scopes = graphOptions.Scopes?.Any() == true 
         ? graphOptions.Scopes 
         : new[] { "https://graph.microsoft.com/.default" };
     
-    var authProvider = new BaseBearerTokenAuthenticationProvider(
-        new TokenCredentialAccessTokenProvider(credential, scopes));
+    if (isLocalDevelopment)
+    {
+        // Local development: Use DefaultAzureCredential
+        // This will try multiple credential types in order:
+        // 1. Environment variables (for CI/CD)
+        // 2. Managed Identity (for Azure-hosted apps)
+        // 3. Visual Studio/VS Code (for local development)
+        // 4. Azure CLI (for local development)
+        logger.LogInformation("Using DefaultAzureCredential for local development");
+        credential = new DefaultAzureCredential();
+    }
+    else
+    {
+        // Production: Use ClientSecretCredential for app-only access or OBO flow
+        logger.LogInformation("Using ClientSecretCredential for production with TenantId: {TenantId}, ClientId: {ClientId}", 
+            graphOptions.TenantId, graphOptions.ClientId);
+        
+        if (string.IsNullOrWhiteSpace(graphOptions.ClientSecret))
+        {
+            throw new InvalidOperationException(
+                "ClientSecret is required when TenantId and ClientId are configured. " +
+                "Configure the secret using environment variables, Azure Key Vault, or user secrets.");
+        }
+        
+        credential = new ClientSecretCredential(
+            graphOptions.TenantId,
+            graphOptions.ClientId,
+            graphOptions.ClientSecret);
+    }
     
-    return new GraphServiceClient(authProvider);
+    // Use Azure.Identity directly with Microsoft Graph
+    return new GraphServiceClient(credential, scopes);
 });
 
 builder.Services.AddMcpServer()
@@ -57,30 +81,3 @@ app.MapMcp();
 app.MapHealthChecks("/health");
 
 app.Run();
-
-// Helper class to adapt Azure.Identity TokenCredential to Kiota's IAccessTokenProvider
-internal class TokenCredentialAccessTokenProvider : IAccessTokenProvider
-{
-    private readonly Azure.Core.TokenCredential _credential;
-    private readonly string[] _scopes;
-
-    public TokenCredentialAccessTokenProvider(Azure.Core.TokenCredential credential, string[] scopes)
-    {
-        _credential = credential;
-        _scopes = scopes;
-    }
-
-    public Task<string> GetAuthorizationTokenAsync(Uri uri, Dictionary<string, object>? additionalAuthenticationContext = null, CancellationToken cancellationToken = default)
-    {
-        return GetAccessTokenAsync(cancellationToken);
-    }
-
-    public AllowedHostsValidator AllowedHostsValidator => new AllowedHostsValidator();
-
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
-    {
-        var tokenRequestContext = new Azure.Core.TokenRequestContext(_scopes);
-        var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
-        return token.Token;
-    }
-}
