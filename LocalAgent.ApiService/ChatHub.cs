@@ -21,6 +21,12 @@ public class ChatHub : Hub
         _toolProviders = toolProviders;
     }
 
+    private string GetSystemInstructionsWithDateTime(string baseInstructions)
+    {
+        var currentDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        return $"{baseInstructions}\n\nCurrent date and time: {currentDateTime}";
+    }
+
     public async Task ProcessUserPrompt(Guid AgentId, List<ChatMessage> chatHistory)
     {
         // Return message to the originating client
@@ -28,7 +34,8 @@ public class ChatHub : Hub
 
         // Get system prompt and prepend
         var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
-        ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
+        var systemInstructionsWithDateTime = GetSystemInstructionsWithDateTime(agent.SystemInstructions);
+        ChatMessage systemPromptMessage = new ChatMessage(ChatRole.System, systemInstructionsWithDateTime);
         chatHistory.Insert(0, systemPromptMessage);
         
         // Get all available tools in parallel and flatten
@@ -53,7 +60,8 @@ public class ChatHub : Hub
     {
         string originatingConnectionId = Context.ConnectionId;
         var agent = _dbContext.Agents.Where(agent => agent.Id == AgentId).First();
-        ChatMessage systemInstructionsMessage = new ChatMessage(ChatRole.System, agent.SystemInstructions);
+        var systemInstructionsWithDateTime = GetSystemInstructionsWithDateTime(agent.SystemInstructions);
+        ChatMessage systemInstructionsMessage = new ChatMessage(ChatRole.System, systemInstructionsWithDateTime);
         ChatMessage startupMessage = new ChatMessage(ChatRole.User, "You are now starting to run. Please respond with your first greeting message.");
         List<ChatMessage> chatHistory = [systemInstructionsMessage, startupMessage];
         var responses = _chatClient.GetStreamingResponseAsync(chatHistory);
