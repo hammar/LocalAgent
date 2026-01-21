@@ -11,14 +11,33 @@ var sqlite = sqliteBuilder.WithSqliteWeb(containerBuilder =>
     // Fix for Windows: sqlite-web expects the database file path as a command-line argument
     // The database directory is mounted to /data, so we need to pass /data/{filename}
     // Using reflection to access internal DatabaseFileName property
-    var databaseFileNameProperty = sqliteResource.GetType().GetProperty("DatabaseFileName", 
-        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-    var databaseFileName = databaseFileNameProperty?.GetValue(sqliteResource) as string;
-    
-    if (!string.IsNullOrEmpty(databaseFileName))
+    try
     {
-        var dbPath = $"/data/{databaseFileName}";
-        containerBuilder.WithArgs(dbPath);
+        var databaseFileNameProperty = sqliteResource.GetType().GetProperty("DatabaseFileName", 
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        
+        if (databaseFileNameProperty == null)
+        {
+            throw new InvalidOperationException(
+                "Unable to access DatabaseFileName property. The CommunityToolkit.Aspire.Hosting.SQLite library may have changed.");
+        }
+        
+        var databaseFileName = databaseFileNameProperty.GetValue(sqliteResource) as string;
+        
+        if (!string.IsNullOrEmpty(databaseFileName))
+        {
+            var dbPath = $"/data/{databaseFileName}";
+            containerBuilder.WithArgs(dbPath);
+        }
+        else
+        {
+            throw new InvalidOperationException("Database filename is null or empty.");
+        }
+    }
+    catch (Exception ex)
+    {
+        throw new InvalidOperationException(
+            $"Failed to configure SQLite Web container with database file path: {ex.Message}", ex);
     }
 });
 
