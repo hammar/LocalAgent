@@ -10,7 +10,9 @@ var sqlite = sqliteBuilder.WithSqliteWeb(containerBuilder =>
 {
     // Fix for Windows: sqlite-web expects the database file path as a command-line argument
     // The database directory is mounted to /data, so we need to pass /data/{filename}
-    // Using reflection to access internal DatabaseFileName property
+    // 
+    // Note: Using reflection to access internal DatabaseFileName property because it's not exposed publicly.
+    // If this breaks after a library update, check if DatabaseFileName has been made public or renamed.
     try
     {
         var databaseFileNameProperty = sqliteResource.GetType().GetProperty("DatabaseFileName", 
@@ -19,7 +21,10 @@ var sqlite = sqliteBuilder.WithSqliteWeb(containerBuilder =>
         if (databaseFileNameProperty == null)
         {
             throw new InvalidOperationException(
-                "Unable to access DatabaseFileName property. The CommunityToolkit.Aspire.Hosting.SQLite library may have changed.");
+                "Unable to access DatabaseFileName property on SqliteResource. " +
+                "The CommunityToolkit.Aspire.Hosting.SQLite library structure may have changed. " +
+                "Please check the library version and update this code accordingly, or file an issue at " +
+                "https://github.com/CommunityToolkit/Aspire/issues");
         }
         
         var databaseFileName = databaseFileNameProperty.GetValue(sqliteResource) as string;
@@ -31,13 +36,25 @@ var sqlite = sqliteBuilder.WithSqliteWeb(containerBuilder =>
         }
         else
         {
-            throw new InvalidOperationException("Database filename is null or empty.");
+            throw new InvalidOperationException(
+                "Database filename is null or empty. Ensure AddSqlite() is called with valid parameters.");
         }
+    }
+    catch (InvalidOperationException)
+    {
+        // Re-throw our specific exceptions
+        throw;
+    }
+    catch (System.Reflection.TargetException ex)
+    {
+        throw new InvalidOperationException(
+            $"Failed to get DatabaseFileName property value: {ex.Message}", ex);
     }
     catch (Exception ex)
     {
         throw new InvalidOperationException(
-            $"Failed to configure SQLite Web container with database file path: {ex.Message}", ex);
+            $"Unexpected error while configuring SQLite Web container: {ex.Message}. " +
+            $"This may indicate a compatibility issue with CommunityToolkit.Aspire.Hosting.SQLite.", ex);
     }
 });
 
