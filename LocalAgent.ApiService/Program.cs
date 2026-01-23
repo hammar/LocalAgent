@@ -38,6 +38,8 @@ if (aiConfig.Provider?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == tr
         throw new InvalidOperationException("Azure model ID is not configured in AIConfig:Azure:ModelId");
     }
 
+    Console.WriteLine($"Configuring Azure AI Foundry chat client with endpoint: {aiConfig.Azure.Endpoint}, model: {aiConfig.Azure.ModelId}");
+    
     builder.Services.AddChatClient(sp =>
     {
         var credential = new InteractiveBrowserCredential();
@@ -50,6 +52,8 @@ if (aiConfig.Provider?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == tr
 else
 {
     // Local Ollama configuration (default)
+    Console.WriteLine("Configuring local Ollama chat client");
+    
     builder.AddKeyedOllamaApiClient("llama32")
         .AddChatClient()
         .UseFunctionInvocation()
