@@ -12,6 +12,7 @@
     <ProjectReference Include="../LocalAgent.McpServer/LocalAgent.McpServer.csproj" />
     <ProjectReference Include="../LocalAgent.ApiService/LocalAgent.ApiService.csproj" />
     <ProjectReference Include="../LocalAgent.Web/LocalAgent.Web.csproj" />
+    <ProjectReference Include="..\LocalAgent.ServiceDefaults\LocalAgent.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
   <ItemGroup>
