@@ -26,7 +26,7 @@ builder.Services.AddSignalR();
 // Configure AI based on provider setting
 var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>() ?? new AIConfig();
 
-if (aiConfig.Provider?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == true)
+if (aiConfig.IsAzureProvider())
 {
     // Azure AI Foundry configuration
     if (string.IsNullOrWhiteSpace(aiConfig.Azure.Endpoint))
@@ -38,10 +38,15 @@ if (aiConfig.Provider?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == tr
         throw new InvalidOperationException("Azure model ID is not configured in AIConfig:Azure:ModelId");
     }
 
-    Console.WriteLine($"Configuring Azure AI Foundry chat client with endpoint: {aiConfig.Azure.Endpoint}, model: {aiConfig.Azure.ModelId}");
-    
     builder.Services.AddChatClient(sp =>
     {
+        var logger = sp.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Configuring Azure AI Foundry chat client with endpoint: {Endpoint}, model: {ModelId}", 
+            aiConfig.Azure.Endpoint, aiConfig.Azure.ModelId);
+        
+        // Note: InteractiveBrowserCredential is used for development/local scenarios.
+        // For production, consider using DefaultAzureCredential or ManagedIdentityCredential
+        // which support managed identities and service principals.
         var credential = new InteractiveBrowserCredential();
         var azureClient = new ChatCompletionsClient(new Uri(aiConfig.Azure.Endpoint), credential);
         return azureClient.AsIChatClient(aiConfig.Azure.ModelId);
@@ -52,7 +57,10 @@ if (aiConfig.Provider?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == tr
 else
 {
     // Local Ollama configuration (default)
-    Console.WriteLine("Configuring local Ollama chat client");
+    builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Information);
+    var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
+    var logger = loggerFactory.CreateLogger<Program>();
+    logger.LogInformation("Configuring local Ollama chat client");
     
     builder.AddKeyedOllamaApiClient("llama32")
         .AddChatClient()

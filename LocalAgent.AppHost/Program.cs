@@ -5,8 +5,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Read AI configuration to determine if Ollama should be launched
 var aiConfigSection = builder.Configuration.GetSection("AIConfig");
-var provider = aiConfigSection["Provider"];
-bool useLocalProvider = !string.Equals(provider, "Azure", StringComparison.OrdinalIgnoreCase);
+var provider = aiConfigSection["Provider"] ?? "Local";
+var aiConfig = new AIConfig { Provider = provider };
+bool useLocalProvider = aiConfig.IsLocalProvider();
 
 var sqlite = builder.AddSqlite("sqlite").WithSqliteWeb();
 
