@@ -57,11 +57,6 @@ if (aiConfig.IsAzureProvider())
 else
 {
     // Local Ollama configuration (default)
-    builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Information);
-    var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
-    var logger = loggerFactory.CreateLogger<Program>();
-    logger.LogInformation("Configuring local Ollama chat client");
-    
     builder.AddKeyedOllamaApiClient("llama32")
         .AddChatClient()
         .UseFunctionInvocation()
