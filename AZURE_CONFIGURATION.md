@@ -2,9 +2,11 @@
 
 ## Configuring AI Provider
 
-LocalAgent supports both local LLMs (via Ollama) and Azure-hosted LLMs (via Azure AI Foundry). The provider is configured through the `AIConfig` section in `appsettings.json`.
+LocalAgent supports both local LLMs (via Ollama) and Azure-hosted LLMs (via Azure AI Foundry). The provider is configured through the `AIConfig` section in `LocalAgent.AppHost/appsettings.json`.
 
 ### Configuration Structure
+
+Configuration is centralized in `LocalAgent.AppHost/appsettings.json` and automatically passed to the ApiService via environment variables:
 
 ```json
 {
@@ -13,10 +15,6 @@ LocalAgent supports both local LLMs (via Ollama) and Azure-hosted LLMs (via Azur
     "Azure": {
       "Endpoint": "https://your-resource-name.inference.ai.azure.com",
       "ModelId": "llama-3-70b-instruct"
-    },
-    "Local": {
-      "Endpoint": "http://localhost:11434",
-      "ModelId": "llama3.2"
     }
   }
 }
@@ -26,19 +24,15 @@ LocalAgent supports both local LLMs (via Ollama) and Azure-hosted LLMs (via Azur
 
 By default, LocalAgent uses local Ollama models. To use this configuration:
 
-1. Set `Provider` to `"Local"` in both `LocalAgent.ApiService/appsettings.json` and `LocalAgent.AppHost/appsettings.json`
-2. Ensure Ollama is installed and running (the Aspire AppHost will launch it automatically)
-3. Configure the desired model in `Local.ModelId`
+1. Set `Provider` to `"Local"` in `LocalAgent.AppHost/appsettings.json`
+2. The Aspire AppHost will automatically launch Ollama and configure the ApiService
+3. The model is specified in the AppHost code (currently "llama3.2")
 
 Example:
 ```json
 {
   "AIConfig": {
-    "Provider": "Local",
-    "Local": {
-      "Endpoint": "http://localhost:11434",
-      "ModelId": "llama3.2"
-    }
+    "Provider": "Local"
   }
 }
 ```
@@ -47,7 +41,7 @@ Example:
 
 To use Azure-hosted LLMs:
 
-1. Set `Provider` to `"Azure"` in both `LocalAgent.ApiService/appsettings.json` and `LocalAgent.AppHost/appsettings.json`
+1. Set `Provider` to `"Azure"` in `LocalAgent.AppHost/appsettings.json`
 2. Configure your Azure AI Foundry endpoint in `Azure.Endpoint`
 3. Specify the model deployment name in `Azure.ModelId`
 
@@ -93,4 +87,4 @@ When `Provider` is set to:
 - **Local**: The Aspire AppHost will launch an Ollama container and the ApiService will connect to it
 - **Azure**: The Aspire AppHost skips launching Ollama, and the ApiService connects directly to Azure AI Foundry
 
-Both configurations share the same `appsettings.json` structure in the AppHost and ApiService to keep them in sync.
+Configuration is centralized in the AppHost's `appsettings.json` and automatically propagated to the ApiService via environment variables, avoiding duplication.
