@@ -26,6 +26,28 @@ builder.AddKeyedOllamaApiClient("llama32")
     .UseFunctionInvocation()
     .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
 
+// Configure extended timeouts for local LLM operations
+// The HttpClient naming convention is "{connectionName}_httpClient"
+builder.Services.AddHttpClient("llama32_httpClient")
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        // Disable HttpClient's own timeout to avoid conflicts with resilience pipeline
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5)
+    })
+    .ConfigureHttpClient(client =>
+    {
+        // Set to infinite to let the resilience pipeline handle timeouts
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        // Increase total request timeout to 5 minutes for local LLM inference
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+        // Increase attempt timeout to 4 minutes
+        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+    });
+
 builder.Services.AddSingleton<IClientTransport>(sp =>
 {
     var mcpServerEndpoint = builder.Configuration.GetConnectionString("McpServer")!;
