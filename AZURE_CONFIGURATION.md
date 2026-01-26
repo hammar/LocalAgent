@@ -14,7 +14,8 @@ Configuration is centralized in `LocalAgent.AppHost/appsettings.json` and automa
     "Provider": "Local",  // Options: "Local" or "Azure"
     "Azure": {
       "Endpoint": "https://your-resource-name.inference.ai.azure.com",
-      "ModelId": "llama-3-70b-instruct"
+      "ModelId": "llama-3-70b-instruct",
+      "ApiKey": "your-api-key-here"
     }
   }
 }
@@ -44,8 +45,23 @@ To use Azure-hosted LLMs:
 1. Set `Provider` to `"Azure"` in `LocalAgent.AppHost/appsettings.json`
 2. Configure your Azure AI Foundry endpoint in `Azure.Endpoint`
 3. Specify the model deployment name in `Azure.ModelId`
+4. Store your API key securely using .NET user-secrets
 
-Example:
+#### Storing the API Key Securely
+
+For local development, use .NET user-secrets to store the API key securely:
+
+```bash
+# Navigate to the AppHost project directory
+cd LocalAgent.AppHost
+
+# Set the API key using user-secrets
+dotnet user-secrets set "AIConfig:Azure:ApiKey" "your-actual-api-key-here"
+```
+
+User-secrets are stored outside the project directory and are not committed to source control, keeping your API key secure.
+
+Example appsettings.json (without the API key):
 ```json
 {
   "AIConfig": {
@@ -53,6 +69,7 @@ Example:
     "Azure": {
       "Endpoint": "https://your-resource-name.inference.ai.azure.com",
       "ModelId": "llama-3-70b-instruct"
+      // ApiKey is read from user-secrets, not stored here
     }
   }
 }
@@ -60,12 +77,12 @@ Example:
 
 #### Authentication
 
-When using Azure AI Foundry, LocalAgent uses `InteractiveBrowserCredential` for authentication. This will:
-- Open a browser window for you to sign in with your Azure account
-- Cache the credentials for subsequent requests
-- Work with Azure AD/Entra ID accounts that have access to the Azure AI resource
+LocalAgent uses API key authentication (`AzureKeyCredential`) to connect to Azure AI Foundry. The API key is:
+- Stored securely in .NET user-secrets for local development
+- Automatically picked up by the configuration system
+- Passed securely to the ApiService via environment variables
 
-Make sure your Azure account has the appropriate permissions to access the Azure AI Foundry resource.
+Make sure you have a valid API key from your Azure AI Foundry resource.
 
 ### Benefits of Each Provider
 
@@ -85,6 +102,6 @@ Make sure your Azure account has the appropriate permissions to access the Azure
 
 When `Provider` is set to:
 - **Local**: The Aspire AppHost will launch an Ollama container and the ApiService will connect to it
-- **Azure**: The Aspire AppHost skips launching Ollama, and the ApiService connects directly to Azure AI Foundry
+- **Azure**: The Aspire AppHost skips launching Ollama, and the ApiService connects directly to Azure AI Foundry using API key authentication
 
-Configuration is centralized in the AppHost's `appsettings.json` and automatically propagated to the ApiService via environment variables, avoiding duplication.
+Configuration is centralized in the AppHost's `appsettings.json` (with sensitive values in user-secrets) and automatically propagated to the ApiService via environment variables, avoiding duplication.

@@ -7,7 +7,7 @@ using Swashbuckle.AspNetCore;
 using OllamaSharp;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Client;
-using Azure.Identity;
+using Azure;
 using Azure.AI.Inference;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +37,10 @@ if (aiConfig.IsAzureProvider())
     {
         throw new InvalidOperationException("Azure model ID is not configured in AIConfig:Azure:ModelId");
     }
+    if (string.IsNullOrWhiteSpace(aiConfig.Azure.ApiKey))
+    {
+        throw new InvalidOperationException("Azure API key is not configured in AIConfig:Azure:ApiKey");
+    }
 
     builder.Services.AddChatClient(sp =>
     {
@@ -44,10 +48,7 @@ if (aiConfig.IsAzureProvider())
         logger.LogInformation("Configuring Azure AI Foundry chat client with endpoint: {Endpoint}, model: {ModelId}", 
             aiConfig.Azure.Endpoint, aiConfig.Azure.ModelId);
         
-        // Note: InteractiveBrowserCredential is used for development/local scenarios.
-        // For production, consider using DefaultAzureCredential or ManagedIdentityCredential
-        // which support managed identities and service principals.
-        var credential = new InteractiveBrowserCredential();
+        var credential = new AzureKeyCredential(aiConfig.Azure.ApiKey);
         var azureClient = new ChatCompletionsClient(new Uri(aiConfig.Azure.Endpoint), credential);
         return azureClient.AsIChatClient(aiConfig.Azure.ModelId);
     })

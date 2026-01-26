@@ -19,7 +19,8 @@ var apiService = builder.AddProject<Projects.LocalAgent_ApiService>("apiservice"
     .WithEnvironment("ConnectionStrings__McpServer", mcpServer.GetEndpoint("http"))
     .WithEnvironment("AIConfig__Provider", aiConfig.Provider.ToString())
     .WithEnvironment("AIConfig__Azure__Endpoint", aiConfig.Azure.Endpoint)
-    .WithEnvironment("AIConfig__Azure__ModelId", aiConfig.Azure.ModelId);
+    .WithEnvironment("AIConfig__Azure__ModelId", aiConfig.Azure.ModelId)
+    .WithEnvironment("AIConfig__Azure__ApiKey", aiConfig.Azure.ApiKey);
 
 // Only add Ollama resource if using Local provider
 if (useLocalProvider)
