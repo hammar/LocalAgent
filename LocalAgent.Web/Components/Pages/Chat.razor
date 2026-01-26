@@ -30,7 +30,9 @@
             }
             else
             {
-                foreach (var chatMessage in _chatHistory.Where(msg => !string.IsNullOrEmpty(msg.Text)))
+                foreach (ChatMessage chatMessage in _chatHistory.Where(msg => 
+                    (msg.Role == ChatRole.Assistant || msg.Role == ChatRole.User) && 
+                    !string.IsNullOrEmpty(msg.Text)))
                 {
                     <div class="message" style="margin-bottom:8px;">
                         <strong style="text-transform: capitalize;">@chatMessage.Role:</strong> @chatMessage.Text
@@ -59,21 +61,23 @@
     </div>
     <!-- Actions Window (Right) -->
     <div class="actions-container" style="flex:1;min-width:0;border:1px solid #ccc;padding:10px;height:370px;overflow-y:auto;background:#fafbfc;">
-        <h4>Actions Taken by the Chatbot</h4>
-        @if (Actions.Count == 0)
+        <h4>Tool calls</h4>
+        @if (_chatHistory.Count == 0)
         {
-            <p><em>No actions yet.</em></p>
+            <p><em>No tool calls yet.</em></p>
         }
         else
         {
             <ul style="padding-left:18px;">
-                @foreach (var action in Actions)
+                @foreach (ChatMessage chatMessage in _chatHistory.Where(msg => IsToolUse(msg)))
                 {
-                    <li style="margin-bottom:8px;">@action</li>
+                    foreach (string toolDescription in GetContentDescriptions(chatMessage))
+                    {
+                        <li style="margin-bottom:8px;">@toolDescription</li>
+                    }
                 }
             </ul>
         }
-        <!-- Later, populate this with actual actions from the chatbot -->
     </div>
 </div>
 
@@ -83,7 +87,7 @@
     private bool SendDisabled = false;
     private List<ChatMessage> _chatHistory = [];
     
-    private Dictionary<string,List<ChatResponseUpdate>> _responseUpdatesBuffer = new ();
+    private List<ChatResponseUpdate> _responseUpdatesBuffer = new ();
 
     private string _streamingResponse = string.Empty;
 
@@ -122,37 +126,30 @@
         // Subscribe to the "ReceiveMessage" event from the hub.
         _hubConnection.On<ChatResponseUpdate>("ProcessAgentResponse", async (responseUpdate) =>
         {
-            // A response ID is required in order to reconstruct responses from partial updates.
-            ArgumentException.ThrowIfNullOrEmpty(responseUpdate.ResponseId, nameof(responseUpdate.ResponseId));
+            // Add the response update to the buffer. This buffer holds all the updates until the response is completely retrieved.
+            _responseUpdatesBuffer.Add(responseUpdate);
 
-            // Add the response update to the buffer (creating a new list if this is the first update for a given response).
-            // This buffer holds all the updates for a given response until the response is completely retrieved.
-            if (_responseUpdatesBuffer.TryGetValue(responseUpdate.ResponseId, out var responseUpdates) && responseUpdates != null) {
-                responseUpdates.Add(responseUpdate);
-            }
-            else {
-                responseUpdates = new List<ChatResponseUpdate> { responseUpdate };
-                _responseUpdatesBuffer[responseUpdate.ResponseId] = responseUpdates;
-            }
-
-            // If this is the last update to the response then we can now create a message from the buffer
-            // and add it to the chat or action history, and the GUI will include it on next re-render.
+            // If this is the last update to the response then we can now create the set of messages for this turn
+            //  from the buffer and add them to the chat history, and the GUI will include it on next re-render.
             if (responseUpdate.FinishReason.HasValue) {
-                // TODO: figure out what happens with error responses and other non-text but non-action responses.
-                var completeResponse = responseUpdates.ToChatResponse();
-                if (!string.IsNullOrEmpty(completeResponse.Text)) {
-                    // This is a text response from the agent, so we add it to the chat history.
-                    _chatHistory.AddMessages(responseUpdates);
-                    _streamingResponse = string.Empty; // Clear the streaming GUI after message completion to avoid duplicate text.
-                    SendDisabled = false; // Re-enable the input field.
+                ChatResponse completeResponse = _responseUpdatesBuffer.ToChatResponse();
+                foreach (ChatMessage message in completeResponse.Messages)
+                {
+                    // Azure AI Foundry tends to send empty messages, we don't want those in the chat history.
+                    if (message.Contents.Any())
+                    {
+                        _chatHistory.Add(message);
+                        if (message.Role == ChatRole.Assistant && !IsToolUse(message) && !string.IsNullOrEmpty(message.Text))
+                        {
+                            // This seems to be a proper message response from the assistant, so we can clear out the 
+                            // temporary streaming GUI and re-enable the send button for next turn.
+                            _streamingResponse = string.Empty;
+                            SendDisabled = false;
+                        }
+                    }
                 }
-                else {
-                    // This response is an action taken by the agent, so we add any steps from it to the actions list.
-                    Actions.AddRange(GetActionDescriptions(completeResponse));
-                }
-                
-                _responseUpdatesBuffer.Remove(responseUpdate.ResponseId); // Since the response is complete, we can remove it from the buffer.
-                
+
+                _responseUpdatesBuffer.Clear(); // Since the response is complete, we can empty the buffer.
             }
             else if (!string.IsNullOrEmpty(responseUpdate.Text)) {
                 // Otherwise, if the response is not yet completely received, then we we stream the
@@ -173,9 +170,16 @@
         }
     }
 
-    private static IEnumerable<string> GetActionDescriptions(ChatResponse response) 
+    private static bool IsToolUse(ChatMessage msg) 
     {
-        foreach (var content in response.Messages.SelectMany(msg => msg.Contents))
+        return (msg.Role == ChatRole.Tool)
+            || (msg.Contents.OfType<FunctionCallContent>().Any())
+            || (msg.Contents.OfType<FunctionResultContent>().Any());
+    }
+
+    private static IEnumerable<string> GetContentDescriptions(ChatMessage msg) 
+    {
+        foreach (var content in msg.Contents)
         {
             // TODO: Add more content types here as needed.
             if (content is FunctionCallContent functionCall)

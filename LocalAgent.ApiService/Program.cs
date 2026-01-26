@@ -2,11 +2,13 @@ using LocalAgent.ApiService;
 using Microsoft.Extensions.AI;
 using LocalAgent.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
-using LocalAgent.ApiService.Models;
+using LocalAgent.ServiceDefaults;
 using Swashbuckle.AspNetCore;
 using OllamaSharp;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Client;
+using Azure;
+using Azure.AI.Inference;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,10 +23,46 @@ builder.AddSqliteDbContext<AppDbContext>(name: "sqlite");
 
 builder.Services.AddSignalR();
 
-builder.AddKeyedOllamaApiClient("llama32")
-    .AddChatClient()
+// Configure AI based on provider setting
+var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>() ?? new AIConfig();
+
+if (aiConfig.IsAzureProvider())
+{
+    // Azure AI Foundry configuration
+    if (string.IsNullOrWhiteSpace(aiConfig.Azure.Endpoint))
+    {
+        throw new InvalidOperationException("Azure endpoint is not configured in AIConfig:Azure:Endpoint");
+    }
+    if (string.IsNullOrWhiteSpace(aiConfig.Azure.ModelId))
+    {
+        throw new InvalidOperationException("Azure model ID is not configured in AIConfig:Azure:ModelId");
+    }
+    if (string.IsNullOrWhiteSpace(aiConfig.Azure.ApiKey))
+    {
+        throw new InvalidOperationException("Azure API key is not configured in AIConfig:Azure:ApiKey");
+    }
+
+    builder.Services.AddChatClient(sp =>
+    {
+        var logger = sp.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Configuring Azure AI Foundry chat client with endpoint: {Endpoint}, model: {ModelId}", 
+            aiConfig.Azure.Endpoint, aiConfig.Azure.ModelId);
+        
+        var credential = new AzureKeyCredential(aiConfig.Azure.ApiKey);
+        var azureClient = new ChatCompletionsClient(new Uri(aiConfig.Azure.Endpoint), credential);
+        return azureClient.AsIChatClient(aiConfig.Azure.ModelId);
+    })
     .UseFunctionInvocation()
     .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
+}
+else
+{
+    // Local Ollama configuration (default)
+    builder.AddKeyedOllamaApiClient("llama32")
+        .AddChatClient()
+        .UseFunctionInvocation()
+        .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
+}
 
 builder.Services.AddSingleton<IClientTransport>(sp =>
 {

@@ -12,11 +12,13 @@
     <ProjectReference Include="../LocalAgent.McpServer/LocalAgent.McpServer.csproj" />
     <ProjectReference Include="../LocalAgent.ApiService/LocalAgent.ApiService.csproj" />
     <ProjectReference Include="../LocalAgent.Web/LocalAgent.Web.csproj" />
+    <ProjectReference Include="..\LocalAgent.ServiceDefaults\LocalAgent.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.1.1" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.SQLite" Version="13.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.2" />
   </ItemGroup>
 
 </Project>
