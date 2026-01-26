@@ -31,7 +31,7 @@ builder.AddKeyedOllamaApiClient("llama32")
 builder.Services.AddHttpClient("llama32_httpClient")
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
-        // Disable HttpClient's own timeout to avoid conflicts with resilience pipeline
+        // Configure connection pooling to keep connections alive longer for LLM requests
         PooledConnectionLifetime = TimeSpan.FromMinutes(10),
         PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5)
     })
@@ -44,8 +44,8 @@ builder.Services.AddHttpClient("llama32_httpClient")
     {
         // Increase total request timeout to 5 minutes for local LLM inference
         options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
-        // Increase attempt timeout to 4 minutes
-        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+        // Increase attempt timeout to 2 minutes, leaving room for retry logic
+        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
     });
 
 builder.Services.AddSingleton<IClientTransport>(sp =>
