@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -52,6 +53,8 @@ public static class Extensions
             logging.IncludeScopes = true;
         });
 
+        var disableTracing = builder.Configuration.GetValue<bool>("OpenTelemetry:DisableTracing");
+
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
@@ -61,6 +64,12 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
+                if (disableTracing)
+                {
+                    // Tracing disabled via configuration
+                    return;
+                }
+
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
