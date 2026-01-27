@@ -33,6 +33,13 @@ if (aiConfig.IsLocalProvider())
         .AddChatClient()
         .UseFunctionInvocation()
         .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
+
+    // Configure increased timeout for local Ollama LLM requests
+    // Local LLMs can be slower, especially on low-performance machines
+    builder.Services.AddHttpClient("ollamaModel_httpClient", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(aiConfig.TimeoutSeconds);
+    });
 }
 else
 {
