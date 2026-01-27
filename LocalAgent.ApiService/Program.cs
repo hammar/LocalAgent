@@ -32,21 +32,29 @@ if (aiConfig.IsLocalProvider())
     // The connection name used for Ollama
     const string OllamaConnectionName = "ollamaModel";
     
+    // Configure increased timeout for local Ollama LLM requests BEFORE creating the client
+    // Local LLMs can be slower, especially on low-performance machines
+    // The HttpClient name follows the pattern: {connectionName}_httpClient
+    const int MinimumTimeoutSeconds = 1;
+    var timeoutSeconds = Math.Max(MinimumTimeoutSeconds, aiConfig.TimeoutSeconds);
+    
+    builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
+    {
+        // Set HttpClient timeout to infinite so the resilience handler's timeout is used
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        // Configure the resilience handler with the desired timeout
+        // This overrides the global 10-second default for this specific client
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+    });
+    
     builder.AddOllamaApiClient(OllamaConnectionName)
         .AddChatClient()
         .UseFunctionInvocation()
         .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
-
-    // Configure increased timeout for local Ollama LLM requests
-    // Local LLMs can be slower, especially on low-performance machines
-    // The HttpClient name follows the pattern: {connectionName}_httpClient
-    const int MinimumTimeoutSeconds = 1;
-    builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
-    {
-        // Ensure timeout is at least MinimumTimeoutSeconds to prevent invalid values
-        var timeoutSeconds = Math.Max(MinimumTimeoutSeconds, aiConfig.TimeoutSeconds);
-        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-    });
 }
 else
 {
