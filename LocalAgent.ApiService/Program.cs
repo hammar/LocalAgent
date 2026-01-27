@@ -35,7 +35,7 @@ if (aiConfig.IsLocalProvider())
     // Configure increased timeout for local Ollama LLM requests BEFORE creating the client
     // Local LLMs can be slower, especially on low-performance machines
     // The HttpClient name follows the pattern: {connectionName}_httpClient
-    const int MinimumTimeoutSeconds = 1;
+    const int MinimumTimeoutSeconds = 30; // Minimum 30 seconds for LLM operations
     var timeoutSeconds = Math.Max(MinimumTimeoutSeconds, aiConfig.TimeoutSeconds);
     
     builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
