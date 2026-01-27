@@ -29,16 +29,22 @@ var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>()
 
 if (aiConfig.IsLocalProvider())
 {
-    builder.AddOllamaApiClient("ollamaModel")
+    // The connection name used for Ollama
+    const string OllamaConnectionName = "ollamaModel";
+    
+    builder.AddOllamaApiClient(OllamaConnectionName)
         .AddChatClient()
         .UseFunctionInvocation()
         .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
 
     // Configure increased timeout for local Ollama LLM requests
     // Local LLMs can be slower, especially on low-performance machines
-    builder.Services.AddHttpClient("ollamaModel_httpClient", client =>
+    // The HttpClient name follows the pattern: {connectionName}_httpClient
+    builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
     {
-        client.Timeout = TimeSpan.FromSeconds(aiConfig.TimeoutSeconds);
+        // Ensure timeout is at least 1 second to prevent invalid values
+        var timeoutSeconds = Math.Max(1, aiConfig.TimeoutSeconds);
+        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
     });
 }
 else
