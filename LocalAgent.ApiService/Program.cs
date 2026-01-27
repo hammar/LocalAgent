@@ -24,42 +24,20 @@ builder.AddSqliteDbContext<AppDbContext>(name: "sqlite");
 builder.Services.AddSignalR();
 
 // Configure AI based on provider setting
-var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>() ?? new AIConfig();
+var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>() 
+    ?? throw new InvalidOperationException("AIConfig section is missing in configuration.");
 
-if (aiConfig.IsAzureProvider())
+if (aiConfig.IsLocalProvider())
 {
-    // Azure AI Foundry configuration
-    if (string.IsNullOrWhiteSpace(aiConfig.Azure.Endpoint))
-    {
-        throw new InvalidOperationException("Azure endpoint is not configured in AIConfig:Azure:Endpoint");
-    }
-    if (string.IsNullOrWhiteSpace(aiConfig.Azure.ModelId))
-    {
-        throw new InvalidOperationException("Azure model ID is not configured in AIConfig:Azure:ModelId");
-    }
-    if (string.IsNullOrWhiteSpace(aiConfig.Azure.ApiKey))
-    {
-        throw new InvalidOperationException("Azure API key is not configured in AIConfig:Azure:ApiKey");
-    }
-
-    builder.Services.AddChatClient(sp =>
-    {
-        var logger = sp.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("Configuring Azure AI Foundry chat client with endpoint: {Endpoint}, model: {ModelId}", 
-            aiConfig.Azure.Endpoint, aiConfig.Azure.ModelId);
-        
-        var credential = new AzureKeyCredential(aiConfig.Azure.ApiKey);
-        var azureClient = new ChatCompletionsClient(new Uri(aiConfig.Azure.Endpoint), credential);
-        return azureClient.AsIChatClient(aiConfig.Azure.ModelId);
-    })
-    .UseFunctionInvocation()
-    .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
+    builder.AddOllamaApiClient("ollamaModel")
+        .AddChatClient()
+        .UseFunctionInvocation()
+        .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
 }
 else
 {
-    // Local Ollama configuration (default)
-    builder.AddKeyedOllamaApiClient("llama32")
-        .AddChatClient()
+    builder.AddAzureChatCompletionsClient(connectionName: "ai-foundry")
+        .AddChatClient(aiConfig.ModelId)
         .UseFunctionInvocation()
         .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
 }
@@ -71,6 +49,7 @@ builder.Services.AddSingleton<IClientTransport>(sp =>
     return new HttpClientTransport(transportOptions);
 });
 builder.Services.AddSingleton<McpClientHost>();
+
 // The below is to ensure late initialization of the _client field in McpClientHost, 
 // since we do not want McpClient.CreateAsync slowing down program start.
 builder.Services.AddHostedService(sp => sp.GetRequiredService<McpClientHost>()); 
