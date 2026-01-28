@@ -29,7 +29,33 @@ var aiConfig = builder.Configuration.GetSection("AIConfig").Get<AIConfig>()
 
 if (aiConfig.IsLocalProvider())
 {
-    builder.AddOllamaApiClient("ollamaModel")
+    // The connection name used for Ollama
+    const string OllamaConnectionName = "ollamaModel";
+    
+    // Configure increased timeout for local Ollama LLM requests BEFORE creating the client
+    // Local LLMs can be slower, especially on low-performance machines
+    // The HttpClient name follows the pattern: {connectionName}_httpClient
+    const int MinimumTimeoutSeconds = 30; // Minimum 30 seconds for LLM operations
+    var timeoutSeconds = Math.Max(MinimumTimeoutSeconds, aiConfig.TimeoutSeconds);
+    
+    // IMPORTANT: We do NOT use AddStandardResilienceHandler for this client because:
+    // 1. The global AddStandardResilienceHandler cannot be effectively overridden per-client
+    // 2. It would stack with the global handler causing whichever timeout is shorter to win
+    // 3. For streaming LLM responses, we need a much longer timeout than the default 10 seconds
+    builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
+    {
+        // Set a long timeout for LLM operations (streaming responses can take a while)
+        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+    })
+    // Remove any additional handlers that were added by ConfigureHttpClientDefaults
+    .ConfigureAdditionalHttpMessageHandlers((handlers, _) =>
+    {
+        // Clear the standard resilience handler that was added by defaults
+        // This allows us to have a custom timeout for Ollama without interference
+        handlers.Clear();
+    });
+    
+    builder.AddOllamaApiClient(OllamaConnectionName)
         .AddChatClient()
         .UseFunctionInvocation()
         .UseOpenTelemetry(configure: t => t.EnableSensitiveData = true);
