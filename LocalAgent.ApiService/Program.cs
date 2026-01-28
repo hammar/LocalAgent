@@ -49,6 +49,10 @@ if (aiConfig.IsLocalProvider())
         // This overrides the global 10-second default for this specific client
         options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        
+        // Circuit breaker's sampling duration must be at least double the attempt timeout
+        // to be effective according to validation rules
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(timeoutSeconds * 2.5);
     });
     
     builder.AddOllamaApiClient(OllamaConnectionName)

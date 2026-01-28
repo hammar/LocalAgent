@@ -14,11 +14,11 @@ public class AIConfig
 
     /// <summary>
     /// Timeout in seconds for HTTP requests to the AI service.
-    /// Default is 300 seconds (5 minutes) for local providers to accommodate slower local LLMs.
+    /// Default is 90 seconds to accommodate slower local LLMs while maintaining reasonable responsiveness.
     /// Note: This timeout applies specifically to HTTP client requests. Some AI providers may have
     /// their own internal timeout mechanisms that are independent of this setting.
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 300;
+    public int TimeoutSeconds { get; set; } = 90;
 
     /// <summary>
     /// Determines if the Azure provider is configured
