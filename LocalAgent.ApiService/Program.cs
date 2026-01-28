@@ -38,21 +38,21 @@ if (aiConfig.IsLocalProvider())
     const int MinimumTimeoutSeconds = 30; // Minimum 30 seconds for LLM operations
     var timeoutSeconds = Math.Max(MinimumTimeoutSeconds, aiConfig.TimeoutSeconds);
     
+    // IMPORTANT: We do NOT use AddStandardResilienceHandler for this client because:
+    // 1. The global AddStandardResilienceHandler cannot be effectively overridden per-client
+    // 2. It would stack with the global handler causing whichever timeout is shorter to win
+    // 3. For streaming LLM responses, we need a much longer timeout than the default 10 seconds
     builder.Services.AddHttpClient($"{OllamaConnectionName}_httpClient", client =>
     {
-        // Set HttpClient timeout to infinite so the resilience handler's timeout is used
-        client.Timeout = Timeout.InfiniteTimeSpan;
+        // Set a long timeout for LLM operations (streaming responses can take a while)
+        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
     })
-    .AddStandardResilienceHandler(options =>
+    // Remove any additional handlers that were added by ConfigureHttpClientDefaults
+    .ConfigureAdditionalHttpMessageHandlers((handlers, _) =>
     {
-        // Configure the resilience handler with the desired timeout
-        // This overrides the global 10-second default for this specific client
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-        
-        // Circuit breaker's sampling duration must be at least double the attempt timeout
-        // to be effective according to validation rules
-        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(timeoutSeconds * 2.5);
+        // Clear the standard resilience handler that was added by defaults
+        // This allows us to have a custom timeout for Ollama without interference
+        handlers.Clear();
     });
     
     builder.AddOllamaApiClient(OllamaConnectionName)
