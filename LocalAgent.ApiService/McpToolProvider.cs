@@ -1,8 +1,5 @@
-using System.Threading.Tasks;
+using System.Diagnostics;
 using Microsoft.Extensions.AI;
-using Microsoft.VisualBasic;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 
 namespace LocalAgent.ApiService;
 
@@ -10,13 +7,17 @@ public class McpToolProvider : IToolProvider
 {
     private McpClientHost _mcpClientHost;
 
-    public McpToolProvider(McpClientHost mcpClientHost)
+    private readonly ActivitySource _source;
+
+    public McpToolProvider(IHostEnvironment env, McpClientHost mcpClientHost)
     {
         _mcpClientHost = mcpClientHost;
+        _source = new ActivitySource(env.ApplicationName);
     }
 
     public async Task<IEnumerable<AITool>> GetToolsAsync()
     {
+        using var activity = _source.StartActivity("get_tools");
         return await _mcpClientHost.Client.ListToolsAsync();
     }
 
